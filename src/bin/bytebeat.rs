@@ -7,7 +7,7 @@ fn main() {
     let code = bytebeat::parse_beat(&code).unwrap();
     for i in 0..1000 {
         let buf: Vec<_> = (i * 8000..(i + 1) * 8000)
-            .map(|t| bytebeat::eval_beat(&code, t).unwrap() as u8)
+            .map(|t| bytebeat::eval_beat(&code, t as f32).unwrap() as u8)
             .collect();
         std::io::stdout().write_all(&buf[..]).unwrap();
     }

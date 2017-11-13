@@ -1,7 +1,7 @@
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub enum Cmd {
     Var,
-    Num(i32),
+    Num(f32),
     Add,
     Sub,
     Mul,
@@ -14,7 +14,7 @@ pub enum Cmd {
     Xor,
 }
 
-pub fn eval_beat(cmds: &[Cmd], t: i32) -> Result<i32, ()> {
+pub fn eval_beat(cmds: &[Cmd], t: f32) -> Result<f32, ()> {
     let mut stack = Vec::new();
     for cmd in cmds {
         match *cmd {
@@ -23,60 +23,60 @@ pub fn eval_beat(cmds: &[Cmd], t: i32) -> Result<i32, ()> {
             Cmd::Add => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
-                stack.push(a.wrapping_add(b));
+                stack.push(a + b);
             }
             Cmd::Sub => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
-                stack.push(a.wrapping_sub(b));
+                stack.push(a - b);
             }
             Cmd::Mul => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
-                stack.push(a.wrapping_mul(b));
+                stack.push(a * b);
             }
             Cmd::Div => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
-                if b == 0 {
-                    stack.push(0);
+                if b == 0.0 {
+                    stack.push(0.0);
                 } else {
-                    stack.push(a.wrapping_div(b));
+                    stack.push(a / b);
                 }
             }
             Cmd::Mod => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
+                let b = stack.pop().ok_or(())? as i32;
+                let a = stack.pop().ok_or(())? as i32;
                 if b == 0 {
-                    stack.push(0);
+                    stack.push(0.0);
                 } else {
-                    stack.push(a.wrapping_rem(b));
+                    stack.push(a.wrapping_rem(b) as f32);
                 }
             }
             Cmd::Shl => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push(a << (b % 32));
+                let b = stack.pop().ok_or(())? as i32;
+                let a = stack.pop().ok_or(())? as i32;
+                stack.push((a << (b % 32)) as f32);
             }
             Cmd::Shr => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push(a >> (b % 32))
+                let b = stack.pop().ok_or(())? as i32;
+                let a = stack.pop().ok_or(())? as i32;
+                stack.push((a >> (b % 32)) as f32);
             }
             Cmd::And => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push(a & b);
+                let b = stack.pop().ok_or(())? as i32;
+                let a = stack.pop().ok_or(())? as i32;
+                stack.push((a & b) as f32);
             }
             Cmd::Orr => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push(a | b);
+                let b = stack.pop().ok_or(())? as i32;
+                let a = stack.pop().ok_or(())? as i32;
+                stack.push((a | b) as f32);
             }
             Cmd::Xor => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push(a ^ b);
+                let b = stack.pop().ok_or(())? as i32;
+                let a = stack.pop().ok_or(())? as i32;
+                stack.push((a ^ b) as f32);
             }
         }
     }
@@ -137,14 +137,20 @@ mod tests {
     #[test]
     fn test_eval() {
         use Cmd::*;
-        assert_eq!(eval_beat(&[Var, Var, Add], 2), Ok(4));
-        assert_eq!(eval_beat(&[Var, Var, Mul], 3), Ok(9));
-        assert_eq!(eval_beat(&[Var, Var, Num(2), Mul, Sub], 3), Ok(-3));
-        assert_eq!(eval_beat(&[Num(1), Num(2), And], -1), Ok(0));
-        assert_eq!(eval_beat(&[Num(1), Num(2), Orr], -1), Ok(3));
-        assert_eq!(eval_beat(&[Num(8), Var, Div, Num(2), Mod], 3), Ok(0));
-        assert_eq!(eval_beat(&[Var, Num(-1), Xor], 7), Ok(!7));
-        assert_eq!(eval_beat(&[Var, Num(1), Shr, Num(1), Shl], 3), Ok(2));
+        assert_eq!(eval_beat(&[Var, Var, Add], 2.0), Ok(4.0));
+        assert_eq!(eval_beat(&[Var, Var, Mul], 3.0), Ok(9.0));
+        assert_eq!(eval_beat(&[Var, Var, Num(2.0), Mul, Sub], 3.0), Ok(-3.0));
+        assert_eq!(eval_beat(&[Num(1.0), Num(2.0), And], -1.0), Ok(0.0));
+        assert_eq!(eval_beat(&[Num(1.0), Num(2.0), Orr], -1.0), Ok(3.0));
+        assert_eq!(
+            eval_beat(&[Num(8.0), Var, Div, Num(2.0), Mod], 3.0),
+            Ok(0.0)
+        );
+        assert_eq!(eval_beat(&[Var, Num(-1.0), Xor], 7.0), Ok((!7i32) as f32));
+        assert_eq!(
+            eval_beat(&[Var, Num(1.0), Shr, Num(1.0), Shl], 3.0),
+            Ok(2.0)
+        );
     }
 
     #[test]
@@ -152,12 +158,18 @@ mod tests {
         use Cmd::*;
         assert_eq!(format_beat(&[Var, Var, Add]), "t t +");
         assert_eq!(format_beat(&[Var, Var, Mul]), "t t *");
-        assert_eq!(format_beat(&[Var, Var, Num(2), Mul, Sub]), "t t 2 * -");
-        assert_eq!(format_beat(&[Num(1), Num(2), And]), "1 2 &");
-        assert_eq!(format_beat(&[Num(1), Num(2), Orr]), "1 2 |");
-        assert_eq!(format_beat(&[Num(8), Var, Div, Num(2), Mod]), "8 t / 2 %");
-        assert_eq!(format_beat(&[Var, Num(-1), Xor]), "t -1 ^");
-        assert_eq!(format_beat(&[Var, Num(1), Shr, Num(1), Shl]), "t 1 >> 1 <<");
+        assert_eq!(format_beat(&[Var, Var, Num(2.0), Mul, Sub]), "t t 2 * -");
+        assert_eq!(format_beat(&[Num(1.0), Num(2.0), And]), "1 2 &");
+        assert_eq!(format_beat(&[Num(1.0), Num(2.0), Orr]), "1 2 |");
+        assert_eq!(
+            format_beat(&[Num(8.0), Var, Div, Num(2.0), Mod]),
+            "8 t / 2 %"
+        );
+        assert_eq!(format_beat(&[Var, Num(-1.0), Xor]), "t -1 ^");
+        assert_eq!(
+            format_beat(&[Var, Num(1.0), Shr, Num(1.0), Shl]),
+            "t 1 >> 1 <<"
+        );
     }
 
     #[test]
@@ -166,19 +178,19 @@ mod tests {
         assert_eq!(parse_beat("t t +"), Ok(vec![Var, Var, Add]));
         assert_eq!(parse_beat("t t *"), Ok(vec![Var, Var, Mul]));
         assert_eq!(
-            parse_beat("t t 2 * -"),
-            Ok(vec![Var, Var, Num(2), Mul, Sub])
+            parse_beat("t t 2.0 * -"),
+            Ok(vec![Var, Var, Num(2.0), Mul, Sub])
         );
-        assert_eq!(parse_beat("1 2 &"), Ok(vec![Num(1), Num(2), And]));
-        assert_eq!(parse_beat("1 2 |"), Ok(vec![Num(1), Num(2), Orr]));
+        assert_eq!(parse_beat("1 2 &"), Ok(vec![Num(1.0), Num(2.0), And]));
+        assert_eq!(parse_beat("1 2.0 |"), Ok(vec![Num(1.0), Num(2.0), Orr]));
         assert_eq!(
-            parse_beat("8 t / 2 %"),
-            Ok(vec![Num(8), Var, Div, Num(2), Mod])
+            parse_beat("8.0 t / 2.0 %"),
+            Ok(vec![Num(8.0), Var, Div, Num(2.0), Mod])
         );
-        assert_eq!(parse_beat("t -1 ^"), Ok(vec![Var, Num(-1), Xor]));
+        assert_eq!(parse_beat("t -1.0 ^"), Ok(vec![Var, Num(-1.0), Xor]));
         assert_eq!(
-            parse_beat("t 1 >> 1 <<"),
-            Ok(vec![Var, Num(1), Shr, Num(1), Shl])
+            parse_beat("t 1.0 >> 1.0 <<"),
+            Ok(vec![Var, Num(1.0), Shr, Num(1.0), Shl])
         );
     }
 }
