@@ -23,17 +23,17 @@ pub fn eval_beat(cmds: &[Cmd], t: i32) -> Result<i32, ()> {
             Cmd::Add => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
-                stack.push(a + b);
+                stack.push(a.wrapping_add(b));
             }
             Cmd::Sub => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
-                stack.push(a - b);
+                stack.push(a.wrapping_sub(b));
             }
             Cmd::Mul => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
-                stack.push(a * b);
+                stack.push(a.wrapping_mul(b));
             }
             Cmd::Div => {
                 let b = stack.pop().ok_or(())?;
@@ -41,7 +41,7 @@ pub fn eval_beat(cmds: &[Cmd], t: i32) -> Result<i32, ()> {
                 if b == 0 {
                     stack.push(0);
                 } else {
-                    stack.push(a / b);
+                    stack.push(a.wrapping_div(b));
                 }
             }
             Cmd::Mod => {
@@ -50,7 +50,7 @@ pub fn eval_beat(cmds: &[Cmd], t: i32) -> Result<i32, ()> {
                 if b == 0 {
                     stack.push(0);
                 } else {
-                    stack.push(a % b);
+                    stack.push(a.wrapping_rem(b));
                 }
             }
             Cmd::Shl => {
