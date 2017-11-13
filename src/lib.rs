@@ -12,30 +12,35 @@ pub enum Cmd {
     And,
     Orr,
     Xor,
+    Sin,
+    Cos,
+    Tan,
+    Pow,
 }
 
 pub fn eval_beat(cmds: &[Cmd], t: f32) -> Result<f32, ()> {
+    use Cmd::*;
     let mut stack = Vec::new();
     for cmd in cmds {
         match *cmd {
-            Cmd::Var => stack.push(t),
-            Cmd::Num(y) => stack.push(y),
-            Cmd::Add => {
+            Var => stack.push(t),
+            Num(y) => stack.push(y),
+            Add => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
                 stack.push(a + b);
             }
-            Cmd::Sub => {
+            Sub => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
                 stack.push(a - b);
             }
-            Cmd::Mul => {
+            Mul => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
                 stack.push(a * b);
             }
-            Cmd::Div => {
+            Div => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
                 if b == 0.0 {
@@ -44,7 +49,7 @@ pub fn eval_beat(cmds: &[Cmd], t: f32) -> Result<f32, ()> {
                     stack.push(a / b);
                 }
             }
-            Cmd::Mod => {
+            Mod => {
                 let b = stack.pop().ok_or(())? as i32;
                 let a = stack.pop().ok_or(())? as i32;
                 if b == 0 {
@@ -53,30 +58,47 @@ pub fn eval_beat(cmds: &[Cmd], t: f32) -> Result<f32, ()> {
                     stack.push(a.wrapping_rem(b) as f32);
                 }
             }
-            Cmd::Shl => {
+            Shl => {
                 let b = stack.pop().ok_or(())? as i32;
                 let a = stack.pop().ok_or(())? as i32;
                 stack.push((a << (b % 32)) as f32);
             }
-            Cmd::Shr => {
+            Shr => {
                 let b = stack.pop().ok_or(())? as i32;
                 let a = stack.pop().ok_or(())? as i32;
                 stack.push((a >> (b % 32)) as f32);
             }
-            Cmd::And => {
+            And => {
                 let b = stack.pop().ok_or(())? as i32;
                 let a = stack.pop().ok_or(())? as i32;
                 stack.push((a & b) as f32);
             }
-            Cmd::Orr => {
+            Orr => {
                 let b = stack.pop().ok_or(())? as i32;
                 let a = stack.pop().ok_or(())? as i32;
                 stack.push((a | b) as f32);
             }
-            Cmd::Xor => {
+            Xor => {
                 let b = stack.pop().ok_or(())? as i32;
                 let a = stack.pop().ok_or(())? as i32;
                 stack.push((a ^ b) as f32);
+            }
+            Sin => {
+                let a = stack.pop().ok_or(())?;
+                stack.push(a.sin());
+            }
+            Cos => {
+                let a = stack.pop().ok_or(())?;
+                stack.push(a.cos());
+            }
+            Tan => {
+                let a = stack.pop().ok_or(())?;
+                stack.push(a.tan());
+            }
+            Pow => {
+                let b = stack.pop().ok_or(())?;
+                let a = stack.pop().ok_or(())?;
+                stack.push(a.powf(b));
             }
         }
     }
@@ -98,6 +120,10 @@ pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
             "&" => Ok(And),
             "|" => Ok(Orr),
             "^" => Ok(Xor),
+            "sin" => Ok(Sin),
+            "cos" => Ok(Cos),
+            "tan" => Ok(Tan),
+            "pow" => Ok(Pow),
             x => x.parse().map(Num).map_err(|_| x),
         })
         .collect()
@@ -119,6 +145,10 @@ impl std::fmt::Display for Cmd {
             And => write!(fmt, "&"),
             Orr => write!(fmt, "|"),
             Xor => write!(fmt, "^"),
+            Sin => write!(fmt, "sin"),
+            Cos => write!(fmt, "cos"),
+            Tan => write!(fmt, "tan"),
+            Pow => write!(fmt, "pow"),
         }
     }
 }
@@ -151,6 +181,42 @@ mod tests {
             eval_beat(&[Var, Num(1.0), Shr, Num(1.0), Shl], 3.0),
             Ok(2.0)
         );
+        assert_eq!(
+            eval_beat(&[Var, Num(1.0), Shr, Var, Orr, Tan, Num(128.0), Add], 1.0),
+            Ok(129.5574077247)
+        );
+        assert_eq!(
+            eval_beat(
+                &[Var, Cos, Var, Cos, Mul, Var, Sin, Var, Sin, Mul, Add],
+                0.4,
+            ),
+            Ok(1.0)
+        );
+        assert_eq!(
+            eval_beat(
+                &[
+                    Var,
+                    Num(10.0),
+                    Div,
+                    Var,
+                    Num(2.0),
+                    Var,
+                    Num(10.0),
+                    Shr,
+                    Pow,
+                    Mul,
+                    Sin,
+                    Add,
+                    Sin,
+                    Num(64.0),
+                    Mul,
+                    Num(128.0),
+                    Add,
+                ],
+                3.0,
+            ),
+            Ok(155.32497)
+        );
     }
 
     #[test]
@@ -169,6 +235,38 @@ mod tests {
         assert_eq!(
             format_beat(&[Var, Num(1.0), Shr, Num(1.0), Shl]),
             "t 1 >> 1 <<"
+        );
+        assert_eq!(
+            format_beat(&[Var, Num(1.0), Shr, Var, Orr, Tan, Num(128.0), Add]),
+            "t 1 >> t | tan 128 +"
+        );
+        assert_eq!(
+            format_beat(&[Var, Cos, Var, Cos, Mul, Var, Sin, Var, Sin, Mul, Add]),
+            "t cos t cos * t sin t sin * +"
+        );
+        assert_eq!(
+            format_beat(
+                &[
+                    Var,
+                    Num(10.0),
+                    Div,
+                    Var,
+                    Num(2.0),
+                    Var,
+                    Num(10.0),
+                    Shr,
+                    Pow,
+                    Mul,
+                    Sin,
+                    Add,
+                    Sin,
+                    Num(64.0),
+                    Mul,
+                    Num(128.0),
+                    Add,
+                ],
+            ),
+            "t 10 / t 2 t 10 >> pow * sin + sin 64 * 128 +"
         );
     }
 
@@ -191,6 +289,36 @@ mod tests {
         assert_eq!(
             parse_beat("t 1.0 >> 1.0 <<"),
             Ok(vec![Var, Num(1.0), Shr, Num(1.0), Shl])
+        );
+        assert_eq!(
+            parse_beat("t 1 >> t | tan 128 +"),
+            Ok(vec![Var, Num(1.0), Shr, Var, Orr, Tan, Num(128.0), Add])
+        );
+        assert_eq!(
+            parse_beat("t cos t cos * t sin t sin * +"),
+            Ok(vec![Var, Cos, Var, Cos, Mul, Var, Sin, Var, Sin, Mul, Add])
+        );
+        assert_eq!(
+            parse_beat("t 10 / t 2 t 10 >> pow * sin + sin 64 * 128 +"),
+            Ok(vec![
+                Var,
+                Num(10.0),
+                Div,
+                Var,
+                Num(2.0),
+                Var,
+                Num(10.0),
+                Shr,
+                Pow,
+                Mul,
+                Sin,
+                Add,
+                Sin,
+                Num(64.0),
+                Mul,
+                Num(128.0),
+                Add,
+            ])
         );
     }
 }
