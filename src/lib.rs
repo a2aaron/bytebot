@@ -20,6 +20,7 @@ pub enum Cmd {
     SubF,
     MulF,
     DivF,
+    ModF,
 }
 
 pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
@@ -128,6 +129,15 @@ pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
                     stack.push(a / b);
                 }
             }
+            ModF => {
+                let b = stack.pop().ok_or(())?;
+                let a = stack.pop().ok_or(())?;
+                if b == 0.0 {
+                    stack.push(0.0);
+                } else {
+                    stack.push(a % b);
+                }
+            }
         }
     }
     stack.pop().ok_or(())
@@ -156,6 +166,7 @@ pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
             "-." => Ok(SubF),
             "*." => Ok(MulF),
             "/." => Ok(DivF),
+            "%." => Ok(ModF),
             x => x.parse().map(Num).map_err(|_| x),
         })
         .collect()
@@ -185,6 +196,7 @@ impl std::fmt::Display for Cmd {
             SubF => write!(fmt, "-."),
             MulF => write!(fmt, "*."),
             DivF => write!(fmt, "/."),
+            ModF => write!(fmt, "%."),
         }
     }
 }
@@ -282,6 +294,10 @@ mod tests {
             ),
             Ok(155.324961718789)
         );
+        assert_eq!(
+            eval_beat(&[Num(2.5), Num(1.2), ModF], 0.0),
+            Ok(0.10000000000000009)
+        );
     }
 
     #[test]
@@ -334,6 +350,7 @@ mod tests {
             "t 10 / t 2 t 10 >> pow * sin + sin 64 * 128 +"
         );
         assert_eq!(format_beat(&[AddF, SubF, MulF, DivF]), "+. -. *. /.");
+        assert_eq!(format_beat(&[Num(2.5), Num(1.2), ModF]), "2.5 1.2 %.");
     }
 
     #[test]
@@ -387,5 +404,6 @@ mod tests {
             ])
         );
         assert_eq!(parse_beat("+. -. *. /."), Ok(vec![AddF, SubF, MulF, DivF]));
+        assert_eq!(parse_beat("2.5 1.2 %."), Ok(vec![Num(2.5), Num(1.2), ModF]));
     }
 }
