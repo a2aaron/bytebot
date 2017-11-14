@@ -1,7 +1,7 @@
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
     Var,
-    Num(f32),
+    Num(f64),
     Add,
     Sub,
     Mul,
@@ -16,9 +16,13 @@ pub enum Cmd {
     Cos,
     Tan,
     Pow,
+    AddF,
+    SubF,
+    MulF,
+    DivF,
 }
 
-pub fn eval_beat(cmds: &[Cmd], t: f32) -> Result<f32, ()> {
+pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
     use Cmd::*;
     let mut stack = Vec::new();
     for cmd in cmds {
@@ -26,62 +30,62 @@ pub fn eval_beat(cmds: &[Cmd], t: f32) -> Result<f32, ()> {
             Var => stack.push(t),
             Num(y) => stack.push(y),
             Add => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push(a + b);
+                let b = stack.pop().ok_or(())? as i64;
+                let a = stack.pop().ok_or(())? as i64;
+                stack.push(a.wrapping_add(b) as f64);
             }
             Sub => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push(a - b);
+                let b = stack.pop().ok_or(())? as i64;
+                let a = stack.pop().ok_or(())? as i64;
+                stack.push(a.wrapping_sub(b) as f64);
             }
             Mul => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push(a * b);
+                let b = stack.pop().ok_or(())? as i64;
+                let a = stack.pop().ok_or(())? as i64;
+                stack.push(a.wrapping_mul(b) as f64);
             }
             Div => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                if b == 0.0 {
-                    stack.push(0.0);
-                } else {
-                    stack.push(a / b);
-                }
-            }
-            Mod => {
-                let b = stack.pop().ok_or(())? as i32;
-                let a = stack.pop().ok_or(())? as i32;
+                let b = stack.pop().ok_or(())? as i64;
+                let a = stack.pop().ok_or(())? as i64;
                 if b == 0 {
                     stack.push(0.0);
                 } else {
-                    stack.push(a.wrapping_rem(b) as f32);
+                    stack.push(a.wrapping_div(b) as f64);
+                }
+            }
+            Mod => {
+                let b = stack.pop().ok_or(())? as i64;
+                let a = stack.pop().ok_or(())? as i64;
+                if b == 0 {
+                    stack.push(0.0);
+                } else {
+                    stack.push(a.wrapping_rem(b) as f64);
                 }
             }
             Shl => {
-                let b = stack.pop().ok_or(())? as i32;
-                let a = stack.pop().ok_or(())? as i32;
-                stack.push((a << (b % 32)) as f32);
+                let b = stack.pop().ok_or(())? as i64;
+                let a = stack.pop().ok_or(())? as i64;
+                stack.push((a << (b % 32)) as f64);
             }
             Shr => {
-                let b = stack.pop().ok_or(())? as i32;
-                let a = stack.pop().ok_or(())? as i32;
-                stack.push((a >> (b % 32)) as f32);
+                let b = stack.pop().ok_or(())? as i64;
+                let a = stack.pop().ok_or(())? as i64;
+                stack.push((a >> (b % 32)) as f64);
             }
             And => {
-                let b = stack.pop().ok_or(())? as i32;
-                let a = stack.pop().ok_or(())? as i32;
-                stack.push((a & b) as f32);
+                let b = stack.pop().ok_or(())? as i64;
+                let a = stack.pop().ok_or(())? as i64;
+                stack.push((a & b) as f64);
             }
             Orr => {
-                let b = stack.pop().ok_or(())? as i32;
-                let a = stack.pop().ok_or(())? as i32;
-                stack.push((a | b) as f32);
+                let b = stack.pop().ok_or(())? as i64;
+                let a = stack.pop().ok_or(())? as i64;
+                stack.push((a | b) as f64);
             }
             Xor => {
-                let b = stack.pop().ok_or(())? as i32;
-                let a = stack.pop().ok_or(())? as i32;
-                stack.push((a ^ b) as f32);
+                let b = stack.pop().ok_or(())? as i64;
+                let a = stack.pop().ok_or(())? as i64;
+                stack.push((a ^ b) as f64);
             }
             Sin => {
                 let a = stack.pop().ok_or(())?;
@@ -99,6 +103,30 @@ pub fn eval_beat(cmds: &[Cmd], t: f32) -> Result<f32, ()> {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
                 stack.push(a.powf(b));
+            }
+            AddF => {
+                let b = stack.pop().ok_or(())?;
+                let a = stack.pop().ok_or(())?;
+                stack.push(a + b);
+            }
+            SubF => {
+                let b = stack.pop().ok_or(())?;
+                let a = stack.pop().ok_or(())?;
+                stack.push(a - b);
+            }
+            MulF => {
+                let b = stack.pop().ok_or(())?;
+                let a = stack.pop().ok_or(())?;
+                stack.push(a * b);
+            }
+            DivF => {
+                let b = stack.pop().ok_or(())?;
+                let a = stack.pop().ok_or(())?;
+                if b == 0.0 {
+                    stack.push(0.0);
+                } else {
+                    stack.push(a / b);
+                }
             }
         }
     }
@@ -124,6 +152,10 @@ pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
             "cos" => Ok(Cos),
             "tan" => Ok(Tan),
             "pow" => Ok(Pow),
+            "+." => Ok(AddF),
+            "-." => Ok(SubF),
+            "*." => Ok(MulF),
+            "/." => Ok(DivF),
             x => x.parse().map(Num).map_err(|_| x),
         })
         .collect()
@@ -149,6 +181,10 @@ impl std::fmt::Display for Cmd {
             Cos => write!(fmt, "cos"),
             Tan => write!(fmt, "tan"),
             Pow => write!(fmt, "pow"),
+            AddF => write!(fmt, "+."),
+            SubF => write!(fmt, "-."),
+            MulF => write!(fmt, "*."),
+            DivF => write!(fmt, "/."),
         }
     }
 }
@@ -176,18 +212,22 @@ mod tests {
             eval_beat(&[Num(8.0), Var, Div, Num(2.0), Mod], 3.0),
             Ok(0.0)
         );
-        assert_eq!(eval_beat(&[Var, Num(-1.0), Xor], 7.0), Ok((!7i32) as f32));
+        assert_eq!(eval_beat(&[Var, Num(-1.0), Xor], 7.0), Ok((!7i32) as f64));
         assert_eq!(
             eval_beat(&[Var, Num(1.0), Shr, Num(1.0), Shl], 3.0),
             Ok(2.0)
         );
         assert_eq!(
             eval_beat(&[Var, Num(1.0), Shr, Var, Orr, Tan, Num(128.0), Add], 1.0),
-            Ok(129.5574077247)
+            Ok(129.0)
+        );
+        assert_eq!(
+            eval_beat(&[Var, Num(1.0), Shr, Var, Orr, Tan, Num(128.0), AddF], 1.0),
+            Ok(129.5574077246549)
         );
         assert_eq!(
             eval_beat(
-                &[Var, Cos, Var, Cos, Mul, Var, Sin, Var, Sin, Mul, Add],
+                &[Var, Cos, Var, Cos, MulF, Var, Sin, Var, Sin, MulF, AddF],
                 0.4,
             ),
             Ok(1.0)
@@ -215,7 +255,32 @@ mod tests {
                 ],
                 3.0,
             ),
-            Ok(155.32497)
+            Ok(128.0)
+        );
+        assert_eq!(
+            eval_beat(
+                &[
+                    Var,
+                    Num(10.0),
+                    DivF,
+                    Var,
+                    Num(2.0),
+                    Var,
+                    Num(10.0),
+                    Shr,
+                    Pow,
+                    MulF,
+                    Sin,
+                    AddF,
+                    Sin,
+                    Num(64.0),
+                    MulF,
+                    Num(128.0),
+                    AddF,
+                ],
+                3.0,
+            ),
+            Ok(155.324961718789)
         );
     }
 
@@ -268,6 +333,7 @@ mod tests {
             ),
             "t 10 / t 2 t 10 >> pow * sin + sin 64 * 128 +"
         );
+        assert_eq!(format_beat(&[AddF, SubF, MulF, DivF]), "+. -. *. /.");
     }
 
     #[test]
@@ -320,5 +386,6 @@ mod tests {
                 Add,
             ])
         );
+        assert_eq!(parse_beat("+. -. *. /."), Ok(vec![AddF, SubF, MulF, DivF]));
     }
 }
