@@ -218,6 +218,41 @@ pub fn format_beat(cmds: &[Cmd]) -> String {
 mod tests {
     use super::*;
 
+    macro_rules! test_beat {
+        (
+            name: $name:ident,
+            text: $text:expr,
+            code: [$($cmd:expr),* $(,)*],
+            eval: { $($src:expr => $res:expr),* $(,)* } $(,)*
+        ) => {
+            mod $name {
+                use super::*;
+
+                #[test]
+                fn test_eval() {
+                    use Cmd::*;
+                    let cmd = [$($cmd),*];
+                    $(
+                        assert_eq!(eval_beat(&cmd, $src), Ok($res), "t = {}, cmd: {}", $src, $text);
+                    )*
+                }
+
+                #[test]
+                fn test_format() {
+                    use Cmd::*;
+                    let cmd = [$($cmd),*];
+                    assert_eq!(format_beat(&cmd), $text);
+                }
+
+                #[test]
+                fn test_parse() {
+                    use Cmd::*;
+                    let cmd = vec![$($cmd),*];
+                    assert_eq!(parse_beat($text), Ok(cmd));
+                }
+            }
+        }
+    }
     #[test]
     fn test_eval() {
         use Cmd::*;
