@@ -253,199 +253,316 @@ mod tests {
             }
         }
     }
-    #[test]
-    fn test_eval() {
-        use Cmd::*;
-        assert_eq!(eval_beat(&[Var, Var, Add], 2.0), Ok(4.0));
-        assert_eq!(eval_beat(&[Var, Var, Mul], 3.0), Ok(9.0));
-        assert_eq!(eval_beat(&[Var, Var, Num(2.0), Mul, Sub], 3.0), Ok(-3.0));
-        assert_eq!(eval_beat(&[Num(1.0), Num(2.0), And], -1.0), Ok(0.0));
-        assert_eq!(eval_beat(&[Num(1.0), Num(2.0), Orr], -1.0), Ok(3.0));
-        assert_eq!(eval_beat(&[Num(2.0), Num(-1.0), Shl], 1.0), Ok(0.0));
-        assert_eq!(
-            eval_beat(&[Num(8.0), Var, Div, Num(2.0), Mod], 3.0),
-            Ok(0.0)
-        );
-        assert_eq!(eval_beat(&[Var, Num(-1.0), Xor], 7.0), Ok((!7i32) as f64));
-        assert_eq!(
-            eval_beat(&[Var, Num(1.0), Shr, Num(1.0), Shl], 3.0),
-            Ok(2.0)
-        );
-        assert_eq!(
-            eval_beat(&[Var, Num(1.0), Shr, Var, Orr, Tan, Num(128.0), Add], 1.0),
-            Ok(129.0)
-        );
-        assert_eq!(
-            eval_beat(&[Var, Num(1.0), Shr, Var, Orr, Tan, Num(128.0), AddF], 1.0),
-            Ok(129.5574077246549)
-        );
-        assert_eq!(
-            eval_beat(
-                &[Var, Cos, Var, Cos, MulF, Var, Sin, Var, Sin, MulF, AddF],
-                0.4,
-            ),
-            Ok(1.0)
-        );
-        assert_eq!(
-            eval_beat(
-                &[
-                    Var,
-                    Num(10.0),
-                    Div,
-                    Var,
-                    Num(2.0),
-                    Var,
-                    Num(10.0),
-                    Shr,
-                    Pow,
-                    Mul,
-                    Sin,
-                    Add,
-                    Sin,
-                    Num(64.0),
-                    Mul,
-                    Num(128.0),
-                    Add,
-                ],
-                3.0,
-            ),
-            Ok(128.0)
-        );
-        assert_eq!(
-            eval_beat(
-                &[
-                    Var,
-                    Num(10.0),
-                    DivF,
-                    Var,
-                    Num(2.0),
-                    Var,
-                    Num(10.0),
-                    Shr,
-                    Pow,
-                    MulF,
-                    Sin,
-                    AddF,
-                    Sin,
-                    Num(64.0),
-                    MulF,
-                    Num(128.0),
-                    AddF,
-                ],
-                3.0,
-            ),
-            Ok(155.324961718789)
-        );
-        assert_eq!(
-            eval_beat(&[Num(2.5), Num(1.2), ModF], 0.0),
-            Ok(0.10000000000000009)
-        );
+
+    test_beat! {
+        name: var,
+        text: "t",
+        code: [Var],
+        eval: {
+            0.0 => 0.0,
+            0.5 => 0.5,
+        }
     }
 
-    #[test]
-    fn test_format() {
-        use Cmd::*;
-        assert_eq!(format_beat(&[Var, Var, Add]), "t t +");
-        assert_eq!(format_beat(&[Var, Var, Mul]), "t t *");
-        assert_eq!(format_beat(&[Var, Var, Num(2.0), Mul, Sub]), "t t 2 * -");
-        assert_eq!(format_beat(&[Num(1.0), Num(2.0), And]), "1 2 &");
-        assert_eq!(format_beat(&[Num(1.0), Num(2.0), Orr]), "1 2 |");
-        assert_eq!(
-            format_beat(&[Num(8.0), Var, Div, Num(2.0), Mod]),
-            "8 t / 2 %"
-        );
-        assert_eq!(format_beat(&[Var, Num(-1.0), Xor]), "t -1 ^");
-        assert_eq!(
-            format_beat(&[Var, Num(1.0), Shr, Num(1.0), Shl]),
-            "t 1 >> 1 <<"
-        );
-        assert_eq!(
-            format_beat(&[Var, Num(1.0), Shr, Var, Orr, Tan, Num(128.0), Add]),
-            "t 1 >> t | tan 128 +"
-        );
-        assert_eq!(
-            format_beat(&[Var, Cos, Var, Cos, Mul, Var, Sin, Var, Sin, Mul, Add]),
-            "t cos t cos * t sin t sin * +"
-        );
-        assert_eq!(
-            format_beat(
-                &[
-                    Var,
-                    Num(10.0),
-                    Div,
-                    Var,
-                    Num(2.0),
-                    Var,
-                    Num(10.0),
-                    Shr,
-                    Pow,
-                    Mul,
-                    Sin,
-                    Add,
-                    Sin,
-                    Num(64.0),
-                    Mul,
-                    Num(128.0),
-                    Add,
-                ],
-            ),
-            "t 10 / t 2 t 10 >> pow * sin + sin 64 * 128 +"
-        );
-        assert_eq!(format_beat(&[AddF, SubF, MulF, DivF]), "+. -. *. /.");
-        assert_eq!(format_beat(&[Num(2.5), Num(1.2), ModF]), "2.5 1.2 %.");
+    test_beat! {
+        name: num,
+        text: "42.69",
+        code: [Num(42.69)],
+        eval: {
+            0.0 => 42.69,
+            13.0 => 42.69,
+        }
     }
 
-    #[test]
-    fn test_parse() {
-        use Cmd::*;
-        assert_eq!(parse_beat("t t +"), Ok(vec![Var, Var, Add]));
-        assert_eq!(parse_beat("t t *"), Ok(vec![Var, Var, Mul]));
-        assert_eq!(
-            parse_beat("t t 2.0 * -"),
-            Ok(vec![Var, Var, Num(2.0), Mul, Sub])
-        );
-        assert_eq!(parse_beat("1 2 &"), Ok(vec![Num(1.0), Num(2.0), And]));
-        assert_eq!(parse_beat("1 2.0 |"), Ok(vec![Num(1.0), Num(2.0), Orr]));
-        assert_eq!(
-            parse_beat("8.0 t / 2.0 %"),
-            Ok(vec![Num(8.0), Var, Div, Num(2.0), Mod])
-        );
-        assert_eq!(parse_beat("t -1.0 ^"), Ok(vec![Var, Num(-1.0), Xor]));
-        assert_eq!(
-            parse_beat("t 1.0 >> 1.0 <<"),
-            Ok(vec![Var, Num(1.0), Shr, Num(1.0), Shl])
-        );
-        assert_eq!(
-            parse_beat("t 1 >> t | tan 128 +"),
-            Ok(vec![Var, Num(1.0), Shr, Var, Orr, Tan, Num(128.0), Add])
-        );
-        assert_eq!(
-            parse_beat("t cos t cos * t sin t sin * +"),
-            Ok(vec![Var, Cos, Var, Cos, Mul, Var, Sin, Var, Sin, Mul, Add])
-        );
-        assert_eq!(
-            parse_beat("t 10 / t 2 t 10 >> pow * sin + sin 64 * 128 +"),
-            Ok(vec![
-                Var,
-                Num(10.0),
-                Div,
-                Var,
-                Num(2.0),
-                Var,
-                Num(10.0),
-                Shr,
-                Pow,
-                Mul,
-                Sin,
-                Add,
-                Sin,
-                Num(64.0),
-                Mul,
-                Num(128.0),
-                Add,
-            ])
-        );
-        assert_eq!(parse_beat("+. -. *. /."), Ok(vec![AddF, SubF, MulF, DivF]));
-        assert_eq!(parse_beat("2.5 1.2 %."), Ok(vec![Num(2.5), Num(1.2), ModF]));
+    test_beat! {
+        name: add,
+        text: "t t +",
+        code: [Var, Var, Add],
+        eval: {
+            0.5 => 0.0,
+            1.0 => 2.0,
+        }
+    }
+
+    test_beat! {
+        name: sub,
+        text: "t 1 -",
+        code: [Var, Num(1.0), Sub],
+        eval: {
+            0.0 => -1.0,
+            0.6 => -1.0,
+            1.5 => 0.0,
+        }
+    }
+
+    test_beat! {
+        name: mul,
+        text: "t t *",
+        code: [Var, Var, Mul],
+        eval: {
+            0.5 => 0.0,
+            2.5 => 4.0,
+            3.0 => 9.0,
+        }
+    }
+
+    test_beat! {
+        name: div,
+        text: "t 2 /",
+        code: [Var, Num(2.0), Div],
+        eval: {
+            0.0 => 0.0,
+            1.0 => 0.0,
+            2.0 => 1.0,
+            3.0 => 1.0,
+            4.0 => 2.0,
+        }
+    }
+
+    test_beat! {
+        name: div_0,
+        text: "1 0 /",
+        code: [Num(1.0), Num(0.0), Div],
+        eval: { 1.0 => 0.0 },
+    }
+
+    test_beat! {
+        name: rem,
+        text: "t 7 %",
+        code: [Var, Num(7.0), Mod],
+        eval: {
+            -8.0 => -1.0,
+            -1.0 => -1.0,
+            0.0 => 0.0,
+            5.0 => 5.0,
+            8.0 => 1.0,
+        }
+    }
+
+    test_beat! {
+        name: rem_0,
+        text: "7 0 %",
+        code: [Num(7.0), Num(0.0), Mod],
+        eval: { 1.0 => 0.0 },
+    }
+
+    test_beat! {
+        name: shl,
+        text: "1.1 t <<",
+        code: [Num(1.1), Var, Shl],
+        eval: {
+            -60.0 => 16.0,
+            0.0 => 1.0,
+            0.6 => 1.0,
+            1.0 => 2.0,
+            8.3 => 256.0,
+            65.0 => 2.0,
+        }
+    }
+
+    test_beat! {
+        name: shr,
+        text: "1024.1 t >>",
+        code: [Num(1024.1), Var, Shr],
+        eval: {
+            -60.0 => 64.0,
+            0.0 => 1024.0,
+            0.2 => 1024.0,
+            1.0 => 512.0,
+            4.0 => 64.0,
+            4.7 => 64.0,
+            11.0 => 0.0,
+        }
+    }
+
+    test_beat! {
+        name: and,
+        text: "1 2 &",
+        code: [Num(1.0), Num(2.0), And],
+        eval: { 1.0 => 0.0 },
+    }
+
+    test_beat! {
+        name: orr,
+        text: "1 2 |",
+        code: [Num(1.0), Num(2.0), Orr],
+        eval: { 1.0 => 3.0 },
+    }
+
+    test_beat! {
+        name: xor,
+        text: "t -1 ^",
+        code: [Var, Num(-1.0), Xor],
+        eval: {
+            0.0 => -1.0,
+            3.2 => (!3i64) as f64,
+        }
+    }
+
+    test_beat! {
+        name: addf,
+        text: "0.1 t +.",
+        code: [Num(0.1), Var, AddF],
+        eval: {
+            0.0 => 0.1,
+            -2.0 => -1.9,
+            1.0 => 1.1,
+        }
+    }
+
+    test_beat! {
+        name: subf,
+        text: "0 t -.",
+        code: [Num(0.0), Var, SubF],
+        eval: {
+            -6.9 => 6.9,
+            0.0 => 0.0,
+            4.2 => -4.2,
+        }
+    }
+
+    test_beat! {
+        name: mulf,
+        text: "7.5 t *.",
+        code: [Num(7.5), Var, MulF],
+        eval: {
+            4.2 => 31.5,
+            0.0 => 0.0,
+            -6.9 => -51.75,
+        }
+    }
+
+    test_beat! {
+        name: divf,
+        text: "7.5 t /.",
+        code: [Num(7.5), Var, DivF],
+        eval: {
+            4.2 => 1.7857142857142856,
+            0.0 => 0.0,
+            -6.9 => -1.0869565217391304,
+        }
+    }
+
+    test_beat! {
+        name: modf,
+        text: "7.5 t %.",
+        code: [Num(7.5), Var, ModF],
+        eval: {
+            4.2 => 3.3,
+            0.0 => 0.0,
+            -6.9 => 0.5999999999999996,
+        }
+    }
+
+    test_beat! {
+        name: circle,
+        text: "t sin t sin *. t cos t cos *. +.",
+        code: [Var, Sin, Var, Sin, MulF, Var, Cos, Var, Cos, MulF, AddF],
+        eval: {
+            0.0 => 1.0,
+            0.5 => 1.0,
+            13.0 => 1.0,
+        }
+    }
+
+    test_beat! {
+        name: tan_ratio,
+        text: "t sin t cos /. t tan -.",
+        code: [Var, Sin, Var, Cos, DivF, Var, Tan, SubF],
+        eval: {
+            0.0 => 0.0,
+            0.5 => 0.0,
+            13.0 => 0.0,
+        }
+    }
+
+    test_beat! {
+        name: pow,
+        text: "t 3.5 pow",
+        code: [Var, Num(3.5), Pow],
+        eval: {
+            0.0 => 0.0,
+            1.0 => 1.0,
+            2.0 => 11.313708498984761,
+            2.7 => 32.34246929812256,
+        }
+    }
+
+    test_beat! {
+        name: example1,
+        text: "t 1 >> t | tan 128 +",
+        code: [Var, Num(1.0), Shr, Var, Orr, Tan, Num(128.0), Add],
+        eval: { 1.0 => 129.0 },
+    }
+
+    test_beat! {
+        name: example2,
+        text: "t 1 >> t | tan 128 +.",
+        code: [Var, Num(1.0), Shr, Var, Orr, Tan, Num(128.0), AddF],
+        eval: { 1.0 => 129.5574077246549 },
+    }
+
+    test_beat! {
+        name: example3,
+        text: "2.5 1.2 %.",
+        code: [Num(2.5), Num(1.2), ModF],
+        eval: { 0.0 => 0.10000000000000009 },
+    }
+
+    test_beat! {
+        name: example4,
+        text: "t cos t cos *. t sin t sin *. +.",
+        code: [Var, Cos, Var, Cos, MulF, Var, Sin, Var, Sin, MulF, AddF],
+        eval: { 0.4 => 1.0 },
+    }
+
+    test_beat! {
+        name: example5,
+        text: "t 10 / t 2 t 10 >> pow * sin + sin 64 * 128 +",
+        code: [
+            Var,
+            Num(10.0),
+            Div,
+            Var,
+            Num(2.0),
+            Var,
+            Num(10.0),
+            Shr,
+            Pow,
+            Mul,
+            Sin,
+            Add,
+            Sin,
+            Num(64.0),
+            Mul,
+            Num(128.0),
+            Add,
+        ],
+        eval: { 3.0 => 128.0 },
+    }
+
+    test_beat! {
+        name: example6,
+        text: "t 10 /. t 2 t 10 >> pow *. sin +. sin 64 *. 128 +.",
+        code: [
+            Var,
+            Num(10.0),
+            DivF,
+            Var,
+            Num(2.0),
+            Var,
+            Num(10.0),
+            Shr,
+            Pow,
+            MulF,
+            Sin,
+            AddF,
+            Sin,
+            Num(64.0),
+            MulF,
+            Num(128.0),
+            AddF,
+        ],
+        eval: { 3.0 => 155.324961718789 },
     }
 }
