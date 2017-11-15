@@ -53,14 +53,13 @@ pub fn random_beat() -> Vec<Cmd> {
             _ => -1,
         };
 
-        if let Num(x) = random_cmd {
+        if let Num(_) = random_cmd {
             let random_number = (rand::thread_rng().gen::<i32>() % 256).abs();
             random_cmd = Num(random_number as f64);
         }
 
         vec.push(random_cmd);   
     }
-    eprintln!("{}", format_beat(&vec));
     vec
 }
 
