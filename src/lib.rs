@@ -105,14 +105,20 @@ pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
                 }
             }
             Shl => {
-                let b = stack.pop().ok_or(())? as i64;
+                let mut b = stack.pop().ok_or(())? as i64 % 64;
                 let a = stack.pop().ok_or(())? as i64;
-                stack.push((a << (b % 32)) as f64);
+                if b < 0 {
+                    b += 64;
+                }
+                stack.push((a << b) as f64);
             }
             Shr => {
-                let b = stack.pop().ok_or(())? as i64;
+                let mut b = stack.pop().ok_or(())? as i64 % 64;
                 let a = stack.pop().ok_or(())? as i64;
-                stack.push((a >> (b % 32)) as f64);
+                if b < 0 {
+                    b += 64;
+                }
+                stack.push((a >> b) as f64);
             }
             And => {
                 let b = stack.pop().ok_or(())? as i64;
@@ -261,6 +267,7 @@ mod tests {
         assert_eq!(eval_beat(&[Var, Var, Num(2.0), Mul, Sub], 3.0), Ok(-3.0));
         assert_eq!(eval_beat(&[Num(1.0), Num(2.0), And], -1.0), Ok(0.0));
         assert_eq!(eval_beat(&[Num(1.0), Num(2.0), Orr], -1.0), Ok(3.0));
+        assert_eq!(eval_beat(&[Num(2.0), Num(-1.0), Shl], 1.0), Ok(0.0));
         assert_eq!(
             eval_beat(&[Num(8.0), Var, Div, Num(2.0), Mod], 3.0),
             Ok(0.0)
