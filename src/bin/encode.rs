@@ -52,7 +52,15 @@ fn main() {
         let mut out = std::io::BufWriter::new(video_file);
 
         for frame in 0..FRAME_COUNT {
-            write_frame(&mut out, &mut image, &data, frame, Color([255, 100, 16]));
+            write_frame(
+                &mut out,
+                &mut image,
+                &data,
+                frame,
+                Color([255, 100, 16]),
+                Color([64, 128, 255]),
+                Color([255, 255, 255]),
+            );
         }
     }
 
@@ -84,7 +92,9 @@ fn write_frame<W: Write>(
     image: &mut [Color],
     data: &[u8],
     frame: usize,
-    color: Color,
+    bg_color: Color,
+    wave_color: Color,
+    scan_color: Color,
 ) {
     // Compute the offsets
     let (col, off) = if frame < FRAME_COUNT / 4 {
@@ -102,12 +112,28 @@ fn write_frame<W: Write>(
     for i in 0..WIDTH * HEIGHT {
         let idx = (i % HEIGHT) * WIDTH + (i / HEIGHT);
         let x = data[i + off * HEIGHT];
-        image[idx] = color * x;
+        image[idx] = bg_color * x;
     }
 
     // Draw the cursor
     for row in 0..HEIGHT {
-        image[row * WIDTH + col] = Color([255, 255, 255]);
+        image[row * WIDTH + col] = scan_color;
+    }
+
+    // Draw the waveform
+    let x = WIDTH * frame * 2 / FRAME_COUNT;
+    for row in 0..HEIGHT - 1 {
+        let x0 = data[x * HEIGHT + row];
+        let x1 = data[x * HEIGHT + row + 1];
+        let col = row * WIDTH / HEIGHT;
+        let (bot, top) = (x0.min(x1) as usize, x0.max(x1) as usize);
+        let mid = (bot + top) / 2;
+        for r in bot..mid + 1 {
+            image[(255 - r) * WIDTH + col] = wave_color;
+        }
+        for r in mid..top + 1 {
+            image[(255 - r) * WIDTH + col + 1] = wave_color;
+        }
     }
 
     // Output an image
