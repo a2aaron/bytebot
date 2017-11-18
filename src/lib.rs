@@ -154,56 +154,32 @@ pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
             Lt => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
-                if a < b {
-                    stack.push(1.0);
-                } else {
-                    stack.push(0.0);
-                }
+                stack.push((a < b) as i64 as f64);
             }
             Gt => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
-                if a > b {
-                    stack.push(1.0);
-                } else {
-                    stack.push(0.0);
-                }
+                stack.push((a > b) as i64 as f64);
             },
             Leq => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
-                if a <= b {
-                    stack.push(1.0);
-                } else {
-                    stack.push(0.0);
-                }
+                stack.push((a <= b) as i64 as f64);
             },
             Geq => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
-                if a >= b {
-                    stack.push(1.0);
-                } else {
-                    stack.push(0.0);
-                }
+                stack.push((a >= b) as i64 as f64);
             },
             Eq => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
-                if a == b {
-                    stack.push(1.0);
-                } else {
-                    stack.push(0.0);
-                }
+                stack.push((a == b) as i64 as f64);
             },
             Neq => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
-                if a != b {
-                    stack.push(1.0);
-                } else {
-                    stack.push(0.0);
-                }
+                stack.push((a != b) as i64 as f64);
             },
             Cond => {
                 let cond = stack.pop().ok_or(())?;
