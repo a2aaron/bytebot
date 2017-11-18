@@ -21,6 +21,7 @@ pub enum Cmd {
     MulF,
     DivF,
     ModF,
+    Arr(usize),
 }
 
 pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
@@ -144,6 +145,7 @@ pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
                     stack.push(a % b);
                 }
             }
+            Arr(size) => unimplemented!(),
         }
     }
     stack.pop().ok_or(())
@@ -173,6 +175,7 @@ pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
             "*." => Ok(MulF),
             "/." => Ok(DivF),
             "%." => Ok(ModF),
+            x if x.starts_with('[') => x[1..].parse().map(Arr).map_err(|_| x),
             x => x.parse().map(Num).map_err(|_| x),
         })
         .collect()
@@ -203,6 +206,7 @@ impl std::fmt::Display for Cmd {
             MulF => write!(fmt, "*."),
             DivF => write!(fmt, "/."),
             ModF => write!(fmt, "%."),
+            Arr(size) => write!(fmt, "[{}", size),
         }
     }
 }
@@ -485,6 +489,25 @@ mod tests {
             1.0 => 1.0,
             2.0 => 11.313708498984761,
             2.7 => 32.34246929812256,
+        }
+    }
+
+    test_beat! {
+        name: arr,
+        text: "1 2 3 t [3",
+        code: [Num(1.0), Num(2.0), Num(3.0), Var, Arr(3)],
+        eval: {
+            -4.0 => 3.0,
+            -3.0 => 1.0,
+            -2.0 => 2.0,
+            -1.0 => 3.0,
+            0.0 => 1.0,
+            1.0 => 2.0,
+            2.0 => 3.0,
+            3.0 => 1.0,
+            4.0 => 2.0,
+            5.0 => 3.0,
+            6.0 => 1.0,
         }
     }
 
