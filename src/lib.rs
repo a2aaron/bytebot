@@ -527,6 +527,72 @@ mod tests {
     }
 
     test_beat! {
+        name: lt,
+        text: "t 64 <",
+        code: [Var, Num(64.0), Lt],
+        eval: {
+            0.0 => 1.0,
+            64.0 => 0.0,
+            128.0 => 0.0,
+        }
+    }
+
+    test_beat! {
+        name: gt,
+        text: "t 64 >",
+        code: [Var, Num(64.0), Gt],
+        eval: {
+            0.0 => 0.0,
+            64.0 => 0.0,
+            128.0 => 1.0,
+        }
+    }
+
+    test_beat! {
+        name: leq,
+        text: "t 64 <=",
+        code: [Var, Num(64.0), Leq],
+        eval: {
+            0.0 => 1.0,
+            64.0 => 1.0,
+            128.0 => 0.0,
+        }
+    }
+
+    test_beat! {
+        name: geq,
+        text: "t 64 >=",
+        code: [Var, Num(64.0), Geq],
+        eval: {
+            0.0 => 0.0,
+            64.0 => 1.0,
+            128.0 => 1.0,
+        }
+    }
+
+    test_beat! {
+        name: eq,
+        text: "t 64 ==",
+        code: [Var, Num(64.0), Eq],
+        eval: {
+            0.0 => 0.0,
+            64.0 => 1.0,
+            128.0 => 0.0,
+        }
+    }
+
+    test_beat! {
+        name: neq,
+        text: "t 64 !=",
+        code: [Var, Num(64.0), Neq],
+        eval: {
+            0.0 => 1.0,
+            64.0 => 0.0,
+            128.0 => 1.0,
+        }
+    }
+
+    test_beat! {
         name: circle,
         text: "t sin t sin *. t cos t cos *. +.",
         code: [Var, Sin, Var, Sin, MulF, Var, Cos, Var, Cos, MulF, AddF],
@@ -636,71 +702,5 @@ mod tests {
             AddF,
         ],
         eval: { 3.0 => 155.324961718789 },
-    }
-
-    test_beat! {
-        name: less_than,
-        text: "t 64 <",
-        code: [Var, Num(64.0), Lt],
-        eval: {
-            0.0 => 1.0,
-            64.0 => 0.0,
-            128.0 => 0.0,
-        }
-    }
-
-    test_beat! {
-        name: greater_than,
-        text: "t 64 >",
-        code: [Var, Num(64.0), Gt],
-        eval: {
-            0.0 => 0.0,
-            64.0 => 0.0,
-            128.0 => 1.0,
-        }
-    }
-
-    test_beat! {
-        name: less_than_or_equal,
-        text: "t 64 <=",
-        code: [Var, Num(64.0), Leq],
-        eval: {
-            0.0 => 1.0,
-            64.0 => 1.0,
-            128.0 => 0.0,
-        }
-    }
-
-    test_beat! {
-        name: greater_than_or_equal,
-        text: "t 64 >=",
-        code: [Var, Num(64.0), Geq],
-        eval: {
-            0.0 => 0.0,
-            64.0 => 1.0,
-            128.0 => 1.0,
-        }
-    }
-
-    test_beat! {
-        name: equal_to,
-        text: "t 64 ==",
-        code: [Var, Num(64.0), Eq],
-        eval: {
-            0.0 => 0.0,
-            64.0 => 1.0,
-            128.0 => 0.0,
-        }
-    }
-
-    test_beat! {
-        name: not_equal_to,
-        text: "t 64 !=",
-        code: [Var, Num(64.0), Neq],
-        eval: {
-            0.0 => 1.0,
-            64.0 => 0.0,
-            128.0 => 1.0,
-        }
     }
 }
