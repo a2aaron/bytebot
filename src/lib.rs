@@ -27,6 +27,7 @@ pub enum Cmd {
     Geq,
     Eq,
     Neq,
+    Cond,
 }
 
 pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
@@ -204,6 +205,17 @@ pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
                     stack.push(0.0);
                 }
             },
+            Cond => {
+                let cond = stack.pop().ok_or(())?;
+                let b = stack.pop().ok_or(())?;
+                let a = stack.pop().ok_or(())?;
+                if cond != 0.0 {
+                    stack.push(a);
+                } else {
+                    stack.push(b);
+                }
+
+            }
         }
     }
     stack.pop().ok_or(())
@@ -239,6 +251,7 @@ pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
             ">=" => Ok(Geq),
             "==" => Ok(Eq),
             "!=" => Ok(Neq),
+            "?" => Ok(Cond),
             x => x.parse().map(Num).map_err(|_| x),
         })
         .collect()
@@ -275,6 +288,7 @@ impl std::fmt::Display for Cmd {
             Geq => write!(fmt, ">="),
             Eq => write!(fmt, "=="),
             Neq => write!(fmt, "!="),
+            Cond => write!(fmt, "?"),
         }
     }
 }
@@ -589,6 +603,31 @@ mod tests {
             0.0 => 1.0,
             64.0 => 0.0,
             128.0 => 1.0,
+        }
+    }
+
+    test_beat! {
+        name: cond,
+        text: "3 2 t ?",
+        code: [Num(3.0), Num(2.0), Var, Cond],
+        eval: {
+            0.0 => 2.0,
+            1.0 => 3.0,
+            2.0 => 3.0,
+        }
+    }
+
+    test_beat! {
+        name: even,
+        text: "3 2 t 2 % 0 == ?",
+        code: [Num(3.0), Num(2.0), Var, Num(2.0), Mod, Num(0.0), Eq, Cond],
+        eval: {
+            0.0 => 3.0,
+            1.0 => 2.0,
+            2.0 => 3.0,
+            3.0 => 2.0,
+            4.0 => 3.0,
+            5.0 => 2.0,
         }
     }
 
