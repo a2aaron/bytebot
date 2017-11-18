@@ -21,6 +21,12 @@ pub enum Cmd {
     MulF,
     DivF,
     ModF,
+    Lt,
+    Gt,
+    Leq,
+    Geq,
+    Eq,
+    Neq,
 }
 
 pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
@@ -144,6 +150,60 @@ pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
                     stack.push(a % b);
                 }
             }
+            Lt => {
+                let b = stack.pop().ok_or(())?;
+                let a = stack.pop().ok_or(())?;
+                if a < b {
+                    stack.push(1.0);
+                } else {
+                    stack.push(0.0);
+                }
+            }
+            Gt => {
+                let b = stack.pop().ok_or(())?;
+                let a = stack.pop().ok_or(())?;
+                if a > b {
+                    stack.push(1.0);
+                } else {
+                    stack.push(0.0);
+                }
+            },
+            Leq => {
+                let b = stack.pop().ok_or(())?;
+                let a = stack.pop().ok_or(())?;
+                if a <= b {
+                    stack.push(1.0);
+                } else {
+                    stack.push(0.0);
+                }
+            },
+            Geq => {
+                let b = stack.pop().ok_or(())?;
+                let a = stack.pop().ok_or(())?;
+                if a >= b {
+                    stack.push(1.0);
+                } else {
+                    stack.push(0.0);
+                }
+            },
+            Eq => {
+                let b = stack.pop().ok_or(())?;
+                let a = stack.pop().ok_or(())?;
+                if a == b {
+                    stack.push(1.0);
+                } else {
+                    stack.push(0.0);
+                }
+            },
+            Neq => {
+                let b = stack.pop().ok_or(())?;
+                let a = stack.pop().ok_or(())?;
+                if a != b {
+                    stack.push(1.0);
+                } else {
+                    stack.push(0.0);
+                }
+            },
         }
     }
     stack.pop().ok_or(())
@@ -173,6 +233,12 @@ pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
             "*." => Ok(MulF),
             "/." => Ok(DivF),
             "%." => Ok(ModF),
+            "<" => Ok(Lt),
+            ">" => Ok(Gt),
+            "<=" => Ok(Leq),
+            ">=" => Ok(Geq),
+            "==" => Ok(Eq),
+            "!=" => Ok(Neq),
             x => x.parse().map(Num).map_err(|_| x),
         })
         .collect()
@@ -203,6 +269,12 @@ impl std::fmt::Display for Cmd {
             MulF => write!(fmt, "*."),
             DivF => write!(fmt, "/."),
             ModF => write!(fmt, "%."),
+            Lt => write!(fmt, "<"),
+            Gt => write!(fmt, ">"),
+            Leq => write!(fmt, "<="),
+            Geq => write!(fmt, ">="),
+            Eq => write!(fmt, "=="),
+            Neq => write!(fmt, "!="),
         }
     }
 }
@@ -564,5 +636,71 @@ mod tests {
             AddF,
         ],
         eval: { 3.0 => 155.324961718789 },
+    }
+
+    test_beat! {
+        name: less_than,
+        text: "t 64 <",
+        code: [Var, Num(64.0), Lt],
+        eval: {
+            0.0 => 1.0,
+            64.0 => 0.0,
+            128.0 => 0.0,
+        }
+    }
+
+    test_beat! {
+        name: greater_than,
+        text: "t 64 >",
+        code: [Var, Num(64.0), Gt],
+        eval: {
+            0.0 => 0.0,
+            64.0 => 0.0,
+            128.0 => 1.0,
+        }
+    }
+
+    test_beat! {
+        name: less_than_or_equal,
+        text: "t 64 <=",
+        code: [Var, Num(64.0), Leq],
+        eval: {
+            0.0 => 1.0,
+            64.0 => 1.0,
+            128.0 => 0.0,
+        }
+    }
+
+    test_beat! {
+        name: greater_than_or_equal,
+        text: "t 64 >=",
+        code: [Var, Num(64.0), Geq],
+        eval: {
+            0.0 => 0.0,
+            64.0 => 1.0,
+            128.0 => 1.0,
+        }
+    }
+
+    test_beat! {
+        name: equal_to,
+        text: "t 64 ==",
+        code: [Var, Num(64.0), Eq],
+        eval: {
+            0.0 => 0.0,
+            64.0 => 1.0,
+            128.0 => 0.0,
+        }
+    }
+
+    test_beat! {
+        name: not_equal_to,
+        text: "t 64 !=",
+        code: [Var, Num(64.0), Neq],
+        eval: {
+            0.0 => 1.0,
+            64.0 => 0.0,
+            128.0 => 1.0,
+        }
     }
 }
