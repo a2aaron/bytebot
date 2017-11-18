@@ -512,6 +512,17 @@ mod tests {
     }
 
     test_beat! {
+        name: arr_pops,
+        text: "10 1 2 3 t [3 +",
+        code: [Num(10.0), Num(1.0), Num(2.0), Num(3.0), Var, Arr(3), Add],
+        eval: {
+            0.0 => 11.0,
+            1.0 => 12.0,
+            2.0 => 13.0,
+        }
+    }
+
+    test_beat! {
         name: example1,
         text: "t 1 >> t | tan 128 +",
         code: [Var, Num(1.0), Shr, Var, Orr, Tan, Num(128.0), Add],
