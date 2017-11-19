@@ -146,19 +146,22 @@ pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
                 }
             }
             Arr(size) => {
-                // We need to pop index + size values, so our stack needs to be
-                // atleast size + 1 elements long
-                if size + 1 > stack.len() || size == 0 { 
-                    stack.push(0.0)
+                let index = stack.pop().ok_or(())? as i32;
+                // We need to pop size values, so our stack needs to be
+                // atleast size elements long. Note that split_off panics if we
+                // exceed the length of the vector, so we need this if guard.
+                if size > stack.len() { 
+                    return Err(())
+                } else if size == 0 {
+                    stack.push(0.0);
                 } else {
                     // We want to split off from the end, so we must subtract
                     // here. Note that we add one for the index.
-                    let split_index = stack.len() - (size + 1);
+                    let split_index = stack.len() - size;
                     let mut vec = stack.split_off(split_index);
                     let size = size as i32; // too lazy to keep tying as i32
                     // Pop instead of accessing it because the index shouldn't
                     // count itself (this simplifies calculations)
-                    let index = vec.pop().ok_or(())? as i32;
                     // Calculate the positive modulus (% is remainder,
                     // and is slightly different than mod for negative values)
                     let index = ((index % size) + size) % size;
@@ -554,15 +557,20 @@ mod tests {
         }
     }
 
-    test_beat! {
-        name: empty_arr,
-        text: "[0",
-        code: [Arr(0)],
-        eval: {
-            0.0 => 0.0,
-            1.0 => 0.0,
-            2.0 => 0.0,
-        }
+    #[test]
+    fn test_arr_stack_too_small() {
+        use Cmd::*;
+        let cmd = [Num(1.0), Num(2.0), Num(3.0), Arr(3)];
+        assert_eq!(eval_beat(&cmd, 0.0), Err(()), "t = {}, cmd: {}", 0.0, format_beat(&cmd));
+    }
+
+    #[test]
+    fn test_eval_empty_arr_is_err() {
+        use Cmd::*;
+        let cmd = [Arr(0)];
+        assert_eq!(eval_beat(&cmd, 0.0), Err(()), "t = {}, cmd: {}", 0.0, format_beat(&cmd));
+        assert_eq!(eval_beat(&cmd, 1.0), Err(()), "t = {}, cmd: {}", 1.0, format_beat(&cmd));
+        assert_eq!(eval_beat(&cmd, 2.0), Err(()), "t = {}, cmd: {}", 2.0, format_beat(&cmd));
     }
 
     test_beat! {
