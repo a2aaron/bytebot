@@ -28,6 +28,7 @@ pub enum Cmd {
     Eq,
     Neq,
     Cond,
+    Arr(usize),
 }
 
 pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
@@ -192,6 +193,26 @@ pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
                 }
 
             }
+            Arr(size) => {
+                let index = stack.pop().ok_or(())? as i64;
+                // We need to pop `size` values, so our stack needs to be
+                // atleast size elements long. Note that split_off panics if we
+                // exceed the length of the vector, so we need this if guard.
+                if size > stack.len() { 
+                    return Err(())
+                } else if size == 0 {
+                    stack.push(0.0);
+                } else {
+                    // We want to split off from the end, so we must subtract here.
+                    let split_index = stack.len() - size;
+                    let mut vec = stack.split_off(split_index);
+                    let size = size as i64;
+                    // Calculate the positive modulus (% gives remainder, which
+                    // is slightly different than mod for negative values)
+                    let index = ((index % size) + size) % size;
+                    stack.push(vec[index as usize]);
+                }
+            }
         }
     }
     stack.pop().ok_or(())
@@ -228,6 +249,7 @@ pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
             "==" => Ok(Eq),
             "!=" => Ok(Neq),
             "?" => Ok(Cond),
+            x if x.starts_with('[') => x[1..].parse().map(Arr).map_err(|_| x),
             x => x.parse().map(Num).map_err(|_| x),
         })
         .collect()
@@ -265,6 +287,7 @@ impl std::fmt::Display for Cmd {
             Eq => write!(fmt, "=="),
             Neq => write!(fmt, "!="),
             Cond => write!(fmt, "?"),
+            Arr(size) => write!(fmt, "[{}", size),
         }
     }
 }
@@ -639,6 +662,65 @@ mod tests {
             2.0 => 11.313708498984761,
             2.7 => 32.34246929812256,
         }
+    }
+
+    test_beat! {
+        name: arr,
+        text: "1 2 3 t [3",
+        code: [Num(1.0), Num(2.0), Num(3.0), Var, Arr(3)],
+        eval: {
+            -4.0 => 3.0,
+            -3.0 => 1.0,
+            -2.0 => 2.0,
+            -1.0 => 3.0,
+            0.0 => 1.0,
+            1.0 => 2.0,
+            2.0 => 3.0,
+            3.0 => 1.0,
+            4.0 => 2.0,
+            5.0 => 3.0,
+            6.0 => 1.0,
+        }
+    }
+
+    test_beat! {
+        name: arr_pops,
+        text: "10 1 2 3 t [3 +",
+        code: [Num(10.0), Num(1.0), Num(2.0), Num(3.0), Var, Arr(3), Add],
+        eval: {
+            0.0 => 11.0,
+            1.0 => 12.0,
+            2.0 => 13.0,
+        }
+    }
+
+    test_beat! {
+        name: arr_pushes_zero,
+        text: "1 2 3 [0",
+        code: [Num(1.0), Num(2.0), Num(3.0), Arr(0)],
+        eval: {
+            0.0 => 0.0,
+            1.0 => 0.0,
+            2.0 => 0.0,
+            3.0 => 0.0,
+            4.0 => 0.0,
+        }
+    }
+
+    #[test]
+    fn test_arr_stack_too_small() {
+        use Cmd::*;
+        let cmd = [Num(1.0), Num(2.0), Num(3.0), Arr(3)];
+        assert_eq!(eval_beat(&cmd, 0.0), Err(()), "t = {}, cmd: {}", 0.0, format_beat(&cmd));
+    }
+
+    #[test]
+    fn test_eval_empty_arr_is_err() {
+        use Cmd::*;
+        let cmd = [Arr(0)];
+        assert_eq!(eval_beat(&cmd, 0.0), Err(()), "t = {}, cmd: {}", 0.0, format_beat(&cmd));
+        assert_eq!(eval_beat(&cmd, 1.0), Err(()), "t = {}, cmd: {}", 1.0, format_beat(&cmd));
+        assert_eq!(eval_beat(&cmd, 2.0), Err(()), "t = {}, cmd: {}", 2.0, format_beat(&cmd));
     }
 
     test_beat! {
