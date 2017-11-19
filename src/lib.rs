@@ -146,8 +146,8 @@ pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
                 }
             }
             Arr(size) => {
-                let index = stack.pop().ok_or(())? as i32;
-                // We need to pop size values, so our stack needs to be
+                let index = stack.pop().ok_or(())? as i64;
+                // We need to pop `size` values, so our stack needs to be
                 // atleast size elements long. Note that split_off panics if we
                 // exceed the length of the vector, so we need this if guard.
                 if size > stack.len() { 
@@ -155,15 +155,12 @@ pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
                 } else if size == 0 {
                     stack.push(0.0);
                 } else {
-                    // We want to split off from the end, so we must subtract
-                    // here. Note that we add one for the index.
+                    // We want to split off from the end, so we must subtract here.
                     let split_index = stack.len() - size;
                     let mut vec = stack.split_off(split_index);
-                    let size = size as i32; // too lazy to keep tying as i32
-                    // Pop instead of accessing it because the index shouldn't
-                    // count itself (this simplifies calculations)
-                    // Calculate the positive modulus (% is remainder,
-                    // and is slightly different than mod for negative values)
+                    let size = size as i64;
+                    // Calculate the positive modulus (% gives remainder, which
+                    // is slightly different than mod for negative values)
                     let index = ((index % size) + size) % size;
                     stack.push(vec[index as usize]);
                 }
