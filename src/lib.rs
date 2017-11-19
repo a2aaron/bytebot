@@ -145,7 +145,26 @@ pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
                     stack.push(a % b);
                 }
             }
-            Arr(size) => unimplemented!(),
+            Arr(size) => {
+                // We need to pop index + size values, so our stack needs to be
+                // atleast size + 1 elements long
+                if size + 1 > stack.len() || size == 0 { 
+                    stack.push(0.0)
+                } else {
+                    // We want to split off from the end, so we must subtract
+                    // here. Note that we add one for the index.
+                    let split_index = stack.len() - (size + 1);
+                    let mut vec = stack.split_off(split_index);
+                    let size = size as i32; // too lazy to keep tying as i32
+                    // Pop instead of accessing it because the index shouldn't
+                    // count itself (this simplifies calculations)
+                    let index = vec.pop().ok_or(())? as i32;
+                    // Calculate the positive modulus (% is remainder,
+                    // and is slightly different than mod for negative values)
+                    let index = ((index % size) + size) % size;
+                    stack.push(vec[index as usize]);
+                }
+            }
         }
     }
     stack.pop().ok_or(())
@@ -519,6 +538,30 @@ mod tests {
             0.0 => 11.0,
             1.0 => 12.0,
             2.0 => 13.0,
+        }
+    }
+
+    test_beat! {
+        name: arr_pushes_zero,
+        text: "1 2 3 [0",
+        code: [Num(1.0), Num(2.0), Num(3.0), Arr(0)],
+        eval: {
+            0.0 => 0.0,
+            1.0 => 0.0,
+            2.0 => 0.0,
+            3.0 => 0.0,
+            4.0 => 0.0,
+        }
+    }
+
+    test_beat! {
+        name: empty_arr,
+        text: "[0",
+        code: [Arr(0)],
+        eval: {
+            0.0 => 0.0,
+            1.0 => 0.0,
+            2.0 => 0.0,
         }
     }
 
