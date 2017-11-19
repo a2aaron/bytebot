@@ -1,3 +1,6 @@
+pub mod encode;
+
+
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
     Var,
@@ -160,27 +163,27 @@ pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
                 stack.push((a > b) as i64 as f64);
-            },
+            }
             Leq => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
                 stack.push((a <= b) as i64 as f64);
-            },
+            }
             Geq => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
                 stack.push((a >= b) as i64 as f64);
-            },
+            }
             Eq => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
                 stack.push((a == b) as i64 as f64);
-            },
+            }
             Neq => {
                 let b = stack.pop().ok_or(())?;
                 let a = stack.pop().ok_or(())?;
                 stack.push((a != b) as i64 as f64);
-            },
+            }
             Cond => {
                 let cond = stack.pop().ok_or(())?;
                 let b = stack.pop().ok_or(())?;
