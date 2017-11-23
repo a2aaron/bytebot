@@ -1,6 +1,6 @@
 [package]
 name = "bytebeat"
 version = "0.1.0"
-authors = ["Caleb Jones <code@calebjones.net>"]
+authors = ["Aaron Kofsky <a2aarontothe2@gmail.com>", "Caleb Jones <code@calebjones.net>"]
 
 [dependencies]
