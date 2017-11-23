@@ -1,3 +1,6 @@
+pub mod encode;
+
+
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
     Var,
