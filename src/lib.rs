@@ -116,170 +116,92 @@ impl PartialEq for Val {
     }
 }
 
+/// This allows you to write each expression in terms of consuming the top of the
+/// stack, and then generating the new value to be pushed on.
+///
+/// # Example:
+/// ```rust
+/// stack_op!(stack { a: Val, b: Val, c: bool } => if c { a } else { b })
+/// ```
+/// will pop the top three elements off the stack (with `c` being the topmost),
+/// and then push on either `a` or `b`.
+macro_rules! stack_op {
+    ($stack:ident { $($var:ident : $t:ty),* } => $res:expr) => {{
+        // Pop the variables
+        stack_op!($stack { $($var : $t),* });
+        // Evaluate the expression and push it onto the stack
+        $stack.push($res.into());
+    }};
+    // Pop the variables in reverse order
+    ($stack:ident { }) => {};
+    ($stack:ident { $var:ident : $t:ty $(, $rvar:ident : $rt:ty)* }) => {
+        stack_op!($stack { $($rvar : $rt),* });
+        let $var: $t = $stack.pop().ok_or(())?.into();
+    }
+}
+
 pub fn eval_beat<T: Into<Val>>(cmds: &[Cmd], t: T) -> Result<Val, ()> {
     use Cmd::*;
     let t = t.into();
     let mut stack: Vec<Val> = Vec::new();
     for cmd in cmds {
         match *cmd {
-            Var => stack.push(t),
-            NumF(y) => stack.push(y.into()),
-            NumI(y) => stack.push(y.into()),
-            Add => {
-                let b: i64 = stack.pop().ok_or(())?.into();
-                let a: i64 = stack.pop().ok_or(())?.into();
-                stack.push(a.wrapping_add(b).into());
-            }
-            Sub => {
-                let b: i64 = stack.pop().ok_or(())?.into();
-                let a: i64 = stack.pop().ok_or(())?.into();
-                stack.push(a.wrapping_sub(b).into());
-            }
-            Mul => {
-                let b: i64 = stack.pop().ok_or(())?.into();
-                let a: i64 = stack.pop().ok_or(())?.into();
-                stack.push(a.wrapping_mul(b).into());
-            }
+            Var => stack_op!(stack { } => t),
+            NumF(y) => stack_op!( stack { } => y),
+            NumI(y) => stack_op!( stack { } => y),
+            Add => stack_op!(stack { a: i64, b: i64 } => a.wrapping_add(b)),
+            Sub => stack_op!(stack { a: i64, b: i64 } => a.wrapping_sub(b)),
+            Mul => stack_op!(stack { a: i64, b: i64 } => a.wrapping_mul(b)),
             Div => {
-                let b: i64 = stack.pop().ok_or(())?.into();
-                let a: i64 = stack.pop().ok_or(())?.into();
-                if b == 0 {
-                    stack.push(0.into());
-                } else {
-                    stack.push(a.wrapping_div(b).into());
-                }
+                stack_op!(stack { a: i64, b: i64 } => {
+                    if b == 0 { 0 } else { a.wrapping_div(b) }
+                })
             }
             Mod => {
-                let b: i64 = stack.pop().ok_or(())?.into();
-                let a: i64 = stack.pop().ok_or(())?.into();
-                if b == 0 {
-                    stack.push(0.into());
-                } else {
-                    stack.push(a.wrapping_rem(b).into());
-                }
+                stack_op!(stack { a: i64, b: i64 } => {
+                    if b == 0 { 0 } else { a.wrapping_rem(b) }
+                })
             }
-            Shl => {
-                let mut b: i64 = stack.pop().ok_or(())?.into();
-                let a: i64 = stack.pop().ok_or(())?.into();
-                b %= 64;
-                if b < 0 {
-                    b += 64;
-                }
-                stack.push((a << b).into());
-            }
+            Shl => stack_op!(stack { a: i64, b: i64 } => a << (((b % 64) + 64) % 64)),
             Shr => {
-                let mut b: i64 = stack.pop().ok_or(())?.into();
-                let a: i64 = stack.pop().ok_or(())?.into();
-                b %= 64;
-                if b < 0 {
-                    b += 64;
-                }
-                stack.push((a >> b).into());
+                stack_op!(stack { a: i64, b: i64 } => {
+                    let mut b = b % 64;
+                    if b < 0 {
+                        b += 64;
+                    }
+                    a >> b
+                })
             }
-            And => {
-                let b: i64 = stack.pop().ok_or(())?.into();
-                let a: i64 = stack.pop().ok_or(())?.into();
-                stack.push((a & b).into());
-            }
-            Orr => {
-                let b: i64 = stack.pop().ok_or(())?.into();
-                let a: i64 = stack.pop().ok_or(())?.into();
-                stack.push((a | b).into());
-            }
-            Xor => {
-                let b: i64 = stack.pop().ok_or(())?.into();
-                let a: i64 = stack.pop().ok_or(())?.into();
-                stack.push((a ^ b).into());
-            }
-            Sin => {
-                let a: f64 = stack.pop().ok_or(())?.into();
-                stack.push(a.sin().into());
-            }
-            Cos => {
-                let a: f64 = stack.pop().ok_or(())?.into();
-                stack.push(a.cos().into());
-            }
-            Tan => {
-                let a: f64 = stack.pop().ok_or(())?.into();
-                stack.push(a.tan().into());
-            }
-            Pow => {
-                let b: f64 = stack.pop().ok_or(())?.into();
-                let a: f64 = stack.pop().ok_or(())?.into();
-                stack.push(a.powf(b).into());
-            }
-            AddF => {
-                let b: f64 = stack.pop().ok_or(())?.into();
-                let a: f64 = stack.pop().ok_or(())?.into();
-                stack.push((a + b).into());
-            }
-            SubF => {
-                let b: f64 = stack.pop().ok_or(())?.into();
-                let a: f64 = stack.pop().ok_or(())?.into();
-                stack.push((a - b).into());
-            }
-            MulF => {
-                let b: f64 = stack.pop().ok_or(())?.into();
-                let a: f64 = stack.pop().ok_or(())?.into();
-                stack.push((a * b).into());
-            }
+            And => stack_op!(stack { a: i64, b: i64 } => a & b),
+            Orr => stack_op!(stack { a: i64, b: i64 } => a | b),
+            Xor => stack_op!(stack { a: i64, b: i64 } => a ^ b),
+            Sin => stack_op!(stack { a: f64 } => a.sin()),
+            Cos => stack_op!(stack { a: f64 } => a.cos()),
+            Tan => stack_op!(stack { a: f64 } => a.tan()),
+            Pow => stack_op!(stack { a: f64, b: f64 } => a.powf(b)),
+            AddF => stack_op!(stack { a: f64, b: f64 } => a + b),
+            SubF => stack_op!(stack { a: f64, b: f64 } => a - b),
+            MulF => stack_op!(stack { a: f64, b: f64 } => a * b),
             DivF => {
-                let b: f64 = stack.pop().ok_or(())?.into();
-                let a: f64 = stack.pop().ok_or(())?.into();
-                if b == 0.0 {
-                    stack.push(0.into());
-                } else {
-                    stack.push((a / b).into());
-                }
+                stack_op!(stack { a: f64, b: f64 } => {
+                    if b == 0.0 { 0.0 } else { a / b }
+                })
             }
             ModF => {
-                let b: f64 = stack.pop().ok_or(())?.into();
-                let a: f64 = stack.pop().ok_or(())?.into();
-                if b == 0.0 {
-                    stack.push(0.into());
-                } else {
-                    stack.push((a % b).into());
-                }
+                stack_op!(stack { a: f64, b: f64 } => {
+                    if b == 0.0 { 0.0 } else { a % b }
+                })
             }
-            Lt => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push((a < b).into());
-            }
-            Gt => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push((a > b).into());
-            }
-            Leq => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push((a <= b).into());
-            }
-            Geq => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push((a >= b).into());
-            }
-            Eq => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push((a == b).into());
-            }
-            Neq => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push((a != b).into());
-            }
+            Lt => stack_op!(stack { a: Val, b: Val } => a < b),
+            Gt => stack_op!(stack { a: Val, b: Val } => a > b),
+            Leq => stack_op!(stack { a: Val, b: Val } => a <= b),
+            Geq => stack_op!(stack { a: Val, b: Val } => a >= b),
+            Eq => stack_op!(stack { a: Val, b: Val } => a == b),
+            Neq => stack_op!(stack { a: Val, b: Val } => a != b),
             Cond => {
-                let cond = stack.pop().ok_or(())?.into();
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                if cond {
-                    stack.push(a);
-                } else {
-                    stack.push(b);
-                }
+                stack_op!(stack { a: Val, b: Val, cond: bool } => {
+                    if cond { a } else { b }
+                })
             }
             Arr(size) => {
                 let index: i64 = stack.pop().ok_or(())?.into();
