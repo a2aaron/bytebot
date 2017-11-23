@@ -4,3 +4,6 @@ version = "0.1.0"
 authors = ["Caleb Jones <code@calebjones.net>"]
 
 [dependencies]
+dotenv = "0.10"
+egg-mode = { git = "https://github.com/QuietMisdreavus/twitter-rs.git" }
+tokio-core = "0.1"
