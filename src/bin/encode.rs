@@ -2,7 +2,7 @@ extern crate bytebeat;
 
 use std::io::Read;
 
-mod generate_video;
+mod util;
 
 fn main() {
     // Read in the expression
@@ -19,5 +19,5 @@ fn main() {
         }
     };
     println!("Encoding...");
-    generate_video::generate_video(&code, "out.mp4");
+    util::generate_video(&code, "out.mp4");
 }
