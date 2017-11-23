@@ -34,7 +34,7 @@ fn main() {
     let data = {
         let mut data = [0; SIZE];
         for i in 0..SIZE {
-            data[i] = bytebeat::eval_beat(&code, i as f64).unwrap() as u8;
+            data[i] = bytebeat::eval_beat(&code, i as i64).unwrap().into();
         }
         data
     };
