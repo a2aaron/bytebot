@@ -23,8 +23,8 @@ pub fn generate_video(code: &[Cmd], fname: &str) {
     let mut encoder = bytebeat::encode::EncoderConfig::with_dimensions(WIDTH, HEIGHT)
         .fps(FPS)
         .audio_rate(HZ)
-        .audio_path("audio")
-        .video_path("video")
+        .audio_path("audio.pcm")
+        .video_path("video.ppm")
         .build()
         .unwrap();
 

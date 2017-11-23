@@ -25,6 +25,7 @@ fn main() {
     let code = generate_beat();
     let text = bytebeat::format_beat(&code);
     println!("Generated!");
+    println!("Using formula: {}", text);
 
     println!("Rendering video...");
     let video_data = encode_video(&code).unwrap();
@@ -46,7 +47,10 @@ fn main() {
 }
 
 fn generate_beat() -> Vec<Cmd> {
-    bytebeat::parse_beat("255 % & t 13 >> t & -").unwrap()
+    println!("Reading a beat from stdin:");
+    let mut buf = String::new();
+    std::io::stdin().read_to_string(&mut buf).unwrap();
+    bytebeat::parse_beat(&buf).unwrap()
 }
 
 fn encode_video(code: &[Cmd]) -> io::Result<Vec<u8>> {
