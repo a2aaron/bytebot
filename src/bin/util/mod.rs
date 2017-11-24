@@ -75,11 +75,6 @@ fn render_frame(
         image[idx] = bg_color * x;
     }
 
-    // Draw the cursor
-    for row in 0..HEIGHT {
-        image[row * WIDTH + col] = scan_color;
-    }
-
     // Draw the waveform
     let x = WIDTH * frame * 2 / FRAME_COUNT;
     for row in 0..HEIGHT - 1 {
@@ -94,5 +89,10 @@ fn render_frame(
         for r in mid..top + 1 {
             image[(255 - r) * WIDTH + col + 1] = wave_color;
         }
+    }
+
+    // Draw the cursor
+    for row in 0..HEIGHT {
+        image[row * WIDTH + col] = scan_color;
     }
 }
