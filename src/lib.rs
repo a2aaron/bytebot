@@ -1,5 +1,7 @@
 pub mod encode;
 
+use encode::Color;
+
 
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
@@ -32,24 +34,24 @@ pub enum Cmd {
     Neq,
     Cond,
     Arr(usize),
-    Fg(u8, u8, u8),
-    Bg(u8, u8, u8),
+    Fg(Color),
+    Bg(Color),
     Khz(u8),
 }
 
 pub struct Program {
     code: Vec<Cmd>,
-    bg: Option<[u8; 3]>,
-    fg: Option<[u8; 3]>,
+    bg: Option<Color>,
+    fg: Option<Color>,
     khz: Option<u8>,
 }
 
 impl Program {
-    pub fn bg(&self) -> Option<[u8; 3]> {
+    pub fn bg(&self) -> Option<Color> {
         self.bg
     }
 
-    pub fn fg(&self) -> Option<[u8; 3]> {
+    pub fn fg(&self) -> Option<Color> {
         self.fg
     }
 
@@ -63,8 +65,8 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, ()> {
     let (mut bg, mut fg, mut khz) = (None, None, None);
     for cmd in &cmds {
         match *cmd {
-            Bg(r, g, b) => bg = Some([r, g, b]),
-            Fg(r, g, b) => fg = Some([r, g, b]),
+            Bg(col) => bg = Some(col),
+            Fg(col) => fg = Some(col),
             Khz(k) => khz = Some(k),
             _ => (),
         }
@@ -310,14 +312,14 @@ pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
                 let r = (raw >> 8 & 0xF) as u8;
                 let g = (raw >> 4 & 0xF) as u8;
                 let b = (raw & 0xF) as u8;
-                Ok(Fg(r << 4 | r, g << 4 | g, b << 4 | b))
+                Ok(Fg(Color([r << 4 | r, g << 4 | g, b << 4 | b])))
             }
             x if x.starts_with("!bg:") => {
                 let raw = u16::from_str_radix(&x[4..], 16).map_err(|_| x)?;
                 let r = (raw >> 8 & 0xF) as u8;
                 let g = (raw >> 4 & 0xF) as u8;
                 let b = (raw & 0xF) as u8;
-                Ok(Bg(r << 4 | r, g << 4 | g, b << 4 | b))
+                Ok(Bg(Color([r << 4 | r, g << 4 | g, b << 4 | b])))
             }
             x if x.starts_with("!khz:") => x[5..].parse().map(Khz).map_err(|_| x),
             x => x.parse().map(Num).map_err(|_| x),
@@ -358,8 +360,24 @@ impl std::fmt::Display for Cmd {
             Neq => write!(fmt, "!="),
             Cond => write!(fmt, "?"),
             Arr(size) => write!(fmt, "[{}", size),
-            Fg(r, g, b) => write!(fmt, "!fg:{:X}{:X}{:X}", r & 0xF, g & 0xF, b & 0xF),
-            Bg(r, g, b) => write!(fmt, "!bg:{:X}{:X}{:X}", r & 0xF, g & 0xF, b & 0xF),
+            Fg(col) => {
+                write!(
+                    fmt,
+                    "!fg:{:X}{:X}{:X}",
+                    col.0[0] & 0xF,
+                    col.0[1] & 0xF,
+                    col.0[2] & 0xF
+                )
+            }
+            Bg(col) => {
+                write!(
+                    fmt,
+                    "!bg:{:X}{:X}{:X}",
+                    col.0[0] & 0xF,
+                    col.0[1] & 0xF,
+                    col.0[2] & 0xF
+                )
+            }
             Khz(khz) => write!(fmt, "!khz:{}", khz),
         }
     }
@@ -693,7 +711,7 @@ mod tests {
     test_beat! {
         name: color,
         text: "!fg:F00 !bg:00F 0",
-        code: [Fg(0xFF, 0x00, 0x00), Bg(0x00, 0x00, 0xFF), Num(0.0)],
+        code: [Fg(Color([0xFF, 0x00, 0x00])), Bg(Color([0x00, 0x00, 0xFF])), Num(0.0)],
         eval: { 0.0 => 0.0 },
     }
 
@@ -702,6 +720,22 @@ mod tests {
         text: "!khz:8 8000",
         code: [Khz(8), Num(8000.0)],
         eval: { 0.0 => 8000.0 },
+    }
+
+    #[test]
+    fn test_metadata() {
+        use Cmd::*;
+        let prog = compile(vec![
+            Fg(Color([0, 0, 0])),
+            Bg(Color([0, 0, 0])),
+            Khz(8),
+            Khz(11),
+            Fg(Color([1, 0, 0])),
+            Bg(Color([0, 1, 1])),
+        ]).unwrap();
+        assert_eq!(prog.hz(), Some(11_000));
+        assert_eq!(prog.fg(), Some(Color([1, 0, 0])));
+        assert_eq!(prog.bg(), Some(Color([0, 1, 1])));
     }
 
     test_beat! {
