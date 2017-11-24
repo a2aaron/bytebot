@@ -37,6 +37,7 @@ pub enum Cmd {
     Fg(Color),
     Bg(Color),
     Khz(u8),
+    Comment(String),
 }
 
 pub struct Program {
@@ -269,7 +270,7 @@ pub fn eval_beat(program: &Program, t: f64) -> Result<f64, ()> {
                 }
             }
             // These have no runtime effect
-            Fg(..) | Bg(..) | Khz(..) => (),
+            Fg(..) | Bg(..) | Khz(..) | Comment(..) => (),
         }
     }
     stack.pop().ok_or(())
@@ -322,6 +323,7 @@ pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
                 Ok(Bg(Color([r << 4 | r, g << 4 | g, b << 4 | b])))
             }
             x if x.starts_with("!khz:") => x[5..].parse().map(Khz).map_err(|_| x),
+            x if x.starts_with('#') => Ok(Comment(x[1..].into())),
             x => x.parse().map(Num).map_err(|_| x),
         })
         .collect()
@@ -379,6 +381,7 @@ impl std::fmt::Display for Cmd {
                 )
             }
             Khz(khz) => write!(fmt, "!khz:{}", khz),
+            Comment(ref text) => write!(fmt, "#{}", text),
         }
     }
 }
@@ -720,6 +723,13 @@ mod tests {
         text: "!khz:8 8000",
         code: [Khz(8), Num(8000.0)],
         eval: { 0.0 => 8000.0 },
+    }
+
+    test_beat! {
+        name: comment,
+        text: "#bbcurated 42",
+        code: [Comment("bbcurated".into()), Num(42.0)],
+        eval: { 0.0 => 42.0 },
     }
 
     #[test]
