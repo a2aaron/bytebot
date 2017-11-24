@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::ops::Mul;
 use std::io::{self, Write, BufWriter};
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Color(pub [u8; 3]);
 
 pub fn write_ppm<W: Write>(

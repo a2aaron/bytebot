@@ -1,5 +1,7 @@
 pub mod encode;
 
+use encode::Color;
+
 
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
@@ -32,12 +34,63 @@ pub enum Cmd {
     Neq,
     Cond,
     Arr(usize),
+    Fg(Color),
+    Bg(Color),
+    Khz(u8),
+    Comment(String),
 }
 
-pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
+pub struct Program {
+    code: Vec<Cmd>,
+    bg: Option<Color>,
+    fg: Option<Color>,
+    khz: Option<u8>,
+}
+
+impl Program {
+    pub fn bg(&self) -> Option<Color> {
+        self.bg
+    }
+
+    pub fn fg(&self) -> Option<Color> {
+        self.fg
+    }
+
+    pub fn hz(&self) -> Option<u32> {
+        self.khz.map(|x| x as u32 * 1000)
+    }
+}
+
+pub fn compile(cmds: Vec<Cmd>) -> Result<Program, ()> {
+    use Cmd::*;
+    let (mut bg, mut fg, mut khz) = (None, None, None);
+    for cmd in &cmds {
+        match *cmd {
+            Bg(col) => bg = Some(col),
+            Fg(col) => fg = Some(col),
+            Khz(k) => khz = Some(k),
+            _ => (),
+        }
+    }
+
+    Ok(Program {
+        code: cmds,
+        bg,
+        fg,
+        khz,
+    })
+}
+
+impl std::fmt::Display for Program {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(fmt, "{}", format_beat(&self.code))
+    }
+}
+
+pub fn eval_beat(program: &Program, t: f64) -> Result<f64, ()> {
     use Cmd::*;
     let mut stack = Vec::new();
-    for cmd in cmds {
+    for cmd in &program.code {
         match *cmd {
             Var => stack.push(t),
             Num(y) => stack.push(y),
@@ -216,6 +269,8 @@ pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
                     stack.push(vec[index as usize]);
                 }
             }
+            // These have no runtime effect
+            Fg(..) | Bg(..) | Khz(..) | Comment(..) => (),
         }
     }
     stack.pop().ok_or(())
@@ -253,6 +308,22 @@ pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
             "!=" => Ok(Neq),
             "?" => Ok(Cond),
             x if x.starts_with('[') => x[1..].parse().map(Arr).map_err(|_| x),
+            x if x.starts_with("!fg:") => {
+                let raw = u16::from_str_radix(&x[4..], 16).map_err(|_| x)?;
+                let r = (raw >> 8 & 0xF) as u8;
+                let g = (raw >> 4 & 0xF) as u8;
+                let b = (raw & 0xF) as u8;
+                Ok(Fg(Color([r << 4 | r, g << 4 | g, b << 4 | b])))
+            }
+            x if x.starts_with("!bg:") => {
+                let raw = u16::from_str_radix(&x[4..], 16).map_err(|_| x)?;
+                let r = (raw >> 8 & 0xF) as u8;
+                let g = (raw >> 4 & 0xF) as u8;
+                let b = (raw & 0xF) as u8;
+                Ok(Bg(Color([r << 4 | r, g << 4 | g, b << 4 | b])))
+            }
+            x if x.starts_with("!khz:") => x[5..].parse().map(Khz).map_err(|_| x),
+            x if x.starts_with('#') => Ok(Comment(x[1..].into())),
             x => x.parse().map(Num).map_err(|_| x),
         })
         .collect()
@@ -291,6 +362,26 @@ impl std::fmt::Display for Cmd {
             Neq => write!(fmt, "!="),
             Cond => write!(fmt, "?"),
             Arr(size) => write!(fmt, "[{}", size),
+            Fg(col) => {
+                write!(
+                    fmt,
+                    "!fg:{:X}{:X}{:X}",
+                    col.0[0] & 0xF,
+                    col.0[1] & 0xF,
+                    col.0[2] & 0xF
+                )
+            }
+            Bg(col) => {
+                write!(
+                    fmt,
+                    "!bg:{:X}{:X}{:X}",
+                    col.0[0] & 0xF,
+                    col.0[1] & 0xF,
+                    col.0[2] & 0xF
+                )
+            }
+            Khz(khz) => write!(fmt, "!khz:{}", khz),
+            Comment(ref text) => write!(fmt, "#{}", text),
         }
     }
 }
@@ -319,7 +410,8 @@ mod tests {
                 #[test]
                 fn test_eval() {
                     use Cmd::*;
-                    let cmd = [$($cmd),*];
+                    let cmd = vec![$($cmd),*];
+                    let cmd = compile(cmd).unwrap();
                     $(
                         assert_eq!(eval_beat(&cmd, $src), Ok($res), "t = {}, cmd: {}", $src, $text);
                     )*
@@ -620,6 +712,43 @@ mod tests {
     }
 
     test_beat! {
+        name: color,
+        text: "!fg:F00 !bg:00F 0",
+        code: [Fg(Color([0xFF, 0x00, 0x00])), Bg(Color([0x00, 0x00, 0xFF])), Num(0.0)],
+        eval: { 0.0 => 0.0 },
+    }
+
+    test_beat! {
+        name: khz,
+        text: "!khz:8 8000",
+        code: [Khz(8), Num(8000.0)],
+        eval: { 0.0 => 8000.0 },
+    }
+
+    test_beat! {
+        name: comment,
+        text: "#bbcurated 42",
+        code: [Comment("bbcurated".into()), Num(42.0)],
+        eval: { 0.0 => 42.0 },
+    }
+
+    #[test]
+    fn test_metadata() {
+        use Cmd::*;
+        let prog = compile(vec![
+            Fg(Color([0, 0, 0])),
+            Bg(Color([0, 0, 0])),
+            Khz(8),
+            Khz(11),
+            Fg(Color([1, 0, 0])),
+            Bg(Color([0, 1, 1])),
+        ]).unwrap();
+        assert_eq!(prog.hz(), Some(11_000));
+        assert_eq!(prog.fg(), Some(Color([1, 0, 0])));
+        assert_eq!(prog.bg(), Some(Color([0, 1, 1])));
+    }
+
+    test_beat! {
         name: even,
         text: "3 2 t 2 % 0 == ?",
         code: [Num(3.0), Num(2.0), Var, Num(2.0), Mod, Num(0.0), Eq, Cond],
@@ -713,41 +842,17 @@ mod tests {
     #[test]
     fn test_arr_stack_too_small() {
         use Cmd::*;
-        let cmd = [Num(1.0), Num(2.0), Num(3.0), Arr(3)];
-        assert_eq!(
-            eval_beat(&cmd, 0.0),
-            Err(()),
-            "t = {}, cmd: {}",
-            0.0,
-            format_beat(&cmd)
-        );
+        let cmd = compile(vec![Num(1.0), Num(2.0), Num(3.0), Arr(3)]).unwrap();
+        assert_eq!(eval_beat(&cmd, 0.0), Err(()), "t = {}, cmd: {}", 0.0, cmd);
     }
 
     #[test]
     fn test_eval_empty_arr_is_err() {
         use Cmd::*;
-        let cmd = [Arr(0)];
-        assert_eq!(
-            eval_beat(&cmd, 0.0),
-            Err(()),
-            "t = {}, cmd: {}",
-            0.0,
-            format_beat(&cmd)
-        );
-        assert_eq!(
-            eval_beat(&cmd, 1.0),
-            Err(()),
-            "t = {}, cmd: {}",
-            1.0,
-            format_beat(&cmd)
-        );
-        assert_eq!(
-            eval_beat(&cmd, 2.0),
-            Err(()),
-            "t = {}, cmd: {}",
-            2.0,
-            format_beat(&cmd)
-        );
+        let cmd = compile(vec![Arr(0)]).unwrap();
+        assert_eq!(eval_beat(&cmd, 0.0), Err(()), "t = {}, cmd: {}", 0.0, cmd);
+        assert_eq!(eval_beat(&cmd, 1.0), Err(()), "t = {}, cmd: {}", 1.0, cmd);
+        assert_eq!(eval_beat(&cmd, 2.0), Err(()), "t = {}, cmd: {}", 2.0, cmd);
     }
 
     test_beat! {
