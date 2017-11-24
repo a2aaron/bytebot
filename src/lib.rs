@@ -865,4 +865,13 @@ mod tests {
         ],
         eval: { 3 => 155.324961718789 },
     }
+
+    #[test]
+    fn test_overflow() {
+        // The typed evaluator ensures that we don't make as many unnecessary
+        // conversions, and so we keep more precision.
+        use Cmd::*;
+        let res: u8 = eval_beat(&[Var, Var, Mul], 1_073_741_825.0).unwrap().into();
+        assert_eq!(res, (1_073_741_825i64.wrapping_mul(1_073_741_825)) as u8);
+    }
 }
