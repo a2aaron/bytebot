@@ -74,15 +74,15 @@ fn render_frame(
     // Draw the waveform
     let waveform_col = bg_offset + cursor_col;
     for row in 0..HEIGHT - 1 {
-        let x0 = data[waveform_col * HEIGHT + row];
-        let x1 = data[waveform_col * HEIGHT + row + 1];
+        let x0 = data[waveform_col * HEIGHT + row] as usize;
+        let x1 = data[waveform_col * HEIGHT + row + 1] as usize;
+        let mid = ((x0 + x1) / 2) as usize;
         let col = row * WIDTH / HEIGHT;
-        let (bot, top) = (x0.min(x1) as usize, x0.max(x1) as usize);
-        let mid = (bot + top) / 2;
-        for r in bot..mid + 1 {
+
+        for r in x0.min(mid)..x0.max(mid) + 1 {
             image[(255 - r) * WIDTH + col] = wave_color;
         }
-        for r in mid..top + 1 {
+        for r in x1.min(mid)..x1.max(mid) + 1 {
             image[(255 - r) * WIDTH + col + 1] = wave_color;
         }
     }
