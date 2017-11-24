@@ -6,7 +6,8 @@ use encode::Color;
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
     Var,
-    Num(f64),
+    NumF(f64),
+    NumI(i64),
     Add,
     Sub,
     Mul,
@@ -87,177 +88,186 @@ impl std::fmt::Display for Program {
     }
 }
 
-pub fn eval_beat(program: &Program, t: f64) -> Result<f64, ()> {
+#[derive(Clone, Copy, Debug)]
+pub enum Val {
+    F(f64),
+    I(i64),
+}
+
+impl From<bool> for Val {
+    fn from(b: bool) -> Val {
+        if b { Val::I(1) } else { Val::I(0) }
+    }
+}
+
+impl From<i64> for Val {
+    fn from(i: i64) -> Val {
+        Val::I(i)
+    }
+}
+
+impl From<f64> for Val {
+    fn from(f: f64) -> Val {
+        Val::F(f)
+    }
+}
+
+impl Into<bool> for Val {
+    fn into(self) -> bool {
+        match self {
+            Val::F(x) if x == 0.0 => false,
+            Val::I(0) => false,
+            _ => true,
+        }
+    }
+}
+
+impl Into<i64> for Val {
+    fn into(self) -> i64 {
+        match self {
+            Val::F(x) => x as i64,
+            Val::I(x) => x,
+        }
+    }
+}
+
+impl Into<f64> for Val {
+    fn into(self) -> f64 {
+        match self {
+            Val::F(x) => x,
+            Val::I(x) => x as f64,
+        }
+    }
+}
+
+impl Into<u8> for Val {
+    fn into(self) -> u8 {
+        let x: i64 = self.into();
+        x as u8
+    }
+}
+
+// @Todo: How should this ordering work?? Should we compare intervals?
+impl PartialOrd for Val {
+    fn partial_cmp(&self, rhs: &Val) -> Option<std::cmp::Ordering> {
+        match (*self, *rhs) {
+            (Val::I(l), Val::I(r)) => l.partial_cmp(&r),
+            (Val::F(l), Val::F(r)) => l.partial_cmp(&r),
+            (Val::I(l), Val::F(r)) => (l as f64).partial_cmp(&r),
+            (Val::F(l), Val::I(r)) => l.partial_cmp(&(r as f64)),
+        }
+    }
+}
+
+// @Todo: How should this work? Should we do some smarter interval comparison?
+// Is that equivalent to this?
+impl PartialEq for Val {
+    fn eq(&self, rhs: &Val) -> bool {
+        match (*self, *rhs) {
+            (Val::I(l), Val::I(r)) => l == r,
+            (Val::F(l), Val::F(r)) => l == r,
+            (Val::I(l), Val::F(r)) => l as f64 == r && l == r as i64,
+            (Val::F(l), Val::I(r)) => l == r as f64 && l as i64 == r,
+        }
+    }
+}
+
+/// This allows you to write each expression in terms of consuming the top of the
+/// stack, and then generating the new value to be pushed on.
+///
+/// # Example:
+/// ```rust
+/// stack_op!(stack { a: Val, b: Val, c: bool } => if c { a } else { b })
+/// ```
+/// will pop the top three elements off the stack (with `c` being the topmost),
+/// and then push on either `a` or `b`.
+macro_rules! stack_op {
+    ($stack:ident { $($var:ident : $t:ty),* } => $res:expr) => {{
+        // Pop the variables
+        stack_op!($stack { $($var : $t),* });
+        // Evaluate the expression and push it onto the stack
+        $stack.push($res.into());
+    }};
+    // Pop the variables in reverse order
+    ($stack:ident { }) => {};
+    ($stack:ident { $var:ident : $t:ty $(, $rvar:ident : $rt:ty)* }) => {
+        stack_op!($stack { $($rvar : $rt),* });
+        let $var: $t = $stack.pop().ok_or(())?.into();
+    }
+}
+
+pub fn eval_beat<T: Into<Val>>(program: &Program, t: T) -> Result<Val, ()> {
     use Cmd::*;
-    let mut stack = Vec::new();
+    let t = t.into();
+    let mut stack: Vec<Val> = Vec::new();
     for cmd in &program.code {
         match *cmd {
-            Var => stack.push(t),
-            Num(y) => stack.push(y),
-            Add => {
-                let b = stack.pop().ok_or(())? as i64;
-                let a = stack.pop().ok_or(())? as i64;
-                stack.push(a.wrapping_add(b) as f64);
-            }
-            Sub => {
-                let b = stack.pop().ok_or(())? as i64;
-                let a = stack.pop().ok_or(())? as i64;
-                stack.push(a.wrapping_sub(b) as f64);
-            }
-            Mul => {
-                let b = stack.pop().ok_or(())? as i64;
-                let a = stack.pop().ok_or(())? as i64;
-                stack.push(a.wrapping_mul(b) as f64);
-            }
+            Var => stack_op!(stack { } => t),
+            NumF(y) => stack_op!( stack { } => y),
+            NumI(y) => stack_op!( stack { } => y),
+            Add => stack_op!(stack { a: i64, b: i64 } => a.wrapping_add(b)),
+            Sub => stack_op!(stack { a: i64, b: i64 } => a.wrapping_sub(b)),
+            Mul => stack_op!(stack { a: i64, b: i64 } => a.wrapping_mul(b)),
             Div => {
-                let b = stack.pop().ok_or(())? as i64;
-                let a = stack.pop().ok_or(())? as i64;
-                if b == 0 {
-                    stack.push(0.0);
-                } else {
-                    stack.push(a.wrapping_div(b) as f64);
-                }
+                stack_op!(stack { a: i64, b: i64 } => {
+                    if b == 0 { 0 } else { a.wrapping_div(b) }
+                })
             }
             Mod => {
-                let b = stack.pop().ok_or(())? as i64;
-                let a = stack.pop().ok_or(())? as i64;
-                if b == 0 {
-                    stack.push(0.0);
-                } else {
-                    stack.push(a.wrapping_rem(b) as f64);
-                }
+                stack_op!(stack { a: i64, b: i64 } => {
+                    if b == 0 { 0 } else { a.wrapping_rem(b) }
+                })
             }
-            Shl => {
-                let mut b = stack.pop().ok_or(())? as i64 % 64;
-                let a = stack.pop().ok_or(())? as i64;
-                if b < 0 {
-                    b += 64;
-                }
-                stack.push((a << b) as f64);
-            }
+            Shl => stack_op!(stack { a: i64, b: i64 } => a << (((b % 64) + 64) % 64)),
             Shr => {
-                let mut b = stack.pop().ok_or(())? as i64 % 64;
-                let a = stack.pop().ok_or(())? as i64;
-                if b < 0 {
-                    b += 64;
-                }
-                stack.push((a >> b) as f64);
+                stack_op!(stack { a: i64, b: i64 } => {
+                    let mut b = b % 64;
+                    if b < 0 {
+                        b += 64;
+                    }
+                    a >> b
+                })
             }
-            And => {
-                let b = stack.pop().ok_or(())? as i64;
-                let a = stack.pop().ok_or(())? as i64;
-                stack.push((a & b) as f64);
-            }
-            Orr => {
-                let b = stack.pop().ok_or(())? as i64;
-                let a = stack.pop().ok_or(())? as i64;
-                stack.push((a | b) as f64);
-            }
-            Xor => {
-                let b = stack.pop().ok_or(())? as i64;
-                let a = stack.pop().ok_or(())? as i64;
-                stack.push((a ^ b) as f64);
-            }
-            Sin => {
-                let a = stack.pop().ok_or(())?;
-                stack.push(a.sin());
-            }
-            Cos => {
-                let a = stack.pop().ok_or(())?;
-                stack.push(a.cos());
-            }
-            Tan => {
-                let a = stack.pop().ok_or(())?;
-                stack.push(a.tan());
-            }
-            Pow => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push(a.powf(b));
-            }
-            AddF => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push(a + b);
-            }
-            SubF => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push(a - b);
-            }
-            MulF => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push(a * b);
-            }
+            And => stack_op!(stack { a: i64, b: i64 } => a & b),
+            Orr => stack_op!(stack { a: i64, b: i64 } => a | b),
+            Xor => stack_op!(stack { a: i64, b: i64 } => a ^ b),
+            Sin => stack_op!(stack { a: f64 } => a.sin()),
+            Cos => stack_op!(stack { a: f64 } => a.cos()),
+            Tan => stack_op!(stack { a: f64 } => a.tan()),
+            Pow => stack_op!(stack { a: f64, b: f64 } => a.powf(b)),
+            AddF => stack_op!(stack { a: f64, b: f64 } => a + b),
+            SubF => stack_op!(stack { a: f64, b: f64 } => a - b),
+            MulF => stack_op!(stack { a: f64, b: f64 } => a * b),
             DivF => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                if b == 0.0 {
-                    stack.push(0.0);
-                } else {
-                    stack.push(a / b);
-                }
+                stack_op!(stack { a: f64, b: f64 } => {
+                    if b == 0.0 { 0.0 } else { a / b }
+                })
             }
             ModF => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                if b == 0.0 {
-                    stack.push(0.0);
-                } else {
-                    stack.push(a % b);
-                }
+                stack_op!(stack { a: f64, b: f64 } => {
+                    if b == 0.0 { 0.0 } else { a % b }
+                })
             }
-            Lt => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push((a < b) as i64 as f64);
-            }
-            Gt => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push((a > b) as i64 as f64);
-            }
-            Leq => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push((a <= b) as i64 as f64);
-            }
-            Geq => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push((a >= b) as i64 as f64);
-            }
-            Eq => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push((a == b) as i64 as f64);
-            }
-            Neq => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push((a != b) as i64 as f64);
-            }
+            Lt => stack_op!(stack { a: Val, b: Val } => a < b),
+            Gt => stack_op!(stack { a: Val, b: Val } => a > b),
+            Leq => stack_op!(stack { a: Val, b: Val } => a <= b),
+            Geq => stack_op!(stack { a: Val, b: Val } => a >= b),
+            Eq => stack_op!(stack { a: Val, b: Val } => a == b),
+            Neq => stack_op!(stack { a: Val, b: Val } => a != b),
             Cond => {
-                let cond = stack.pop().ok_or(())?;
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                if cond != 0.0 {
-                    stack.push(a);
-                } else {
-                    stack.push(b);
-                }
-
+                stack_op!(stack { a: Val, b: Val, cond: bool } => {
+                    if cond { a } else { b }
+                })
             }
             Arr(size) => {
-                let index = stack.pop().ok_or(())? as i64;
+                let index: i64 = stack.pop().ok_or(())?.into();
                 // We need to pop `size` values, so our stack needs to be
                 // atleast size elements long. Note that split_off panics if we
                 // exceed the length of the vector, so we need this if guard.
                 if size > stack.len() {
                     return Err(());
                 } else if size == 0 {
-                    stack.push(0.0);
+                    stack.push(0.into());
                 } else {
                     // We want to split off from the end, so we must subtract here.
                     let split_index = stack.len() - size;
@@ -324,7 +334,13 @@ pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
             }
             x if x.starts_with("!khz:") => x[5..].parse().map(Khz).map_err(|_| x),
             x if x.starts_with('#') => Ok(Comment(x[1..].into())),
-            x => x.parse().map(Num).map_err(|_| x),
+            x => {
+                if x.contains('.') {
+                    x.parse().map(NumF).map_err(|_| x)
+                } else {
+                    x.parse().map(NumI).map_err(|_| x)
+                }
+            }
         })
         .collect()
 }
@@ -334,7 +350,15 @@ impl std::fmt::Display for Cmd {
         use Cmd::*;
         match *self {
             Var => write!(fmt, "t"),
-            Num(y) => write!(fmt, "{}", y),
+            NumF(y) => {
+                let buf = format!("{}", y);
+                if buf.contains('.') {
+                    write!(fmt, "{}", buf)
+                } else {
+                    write!(fmt, "{}.0", buf)
+                }
+            }
+            NumI(y) => write!(fmt, "{}", y),
             Add => write!(fmt, "+"),
             Sub => write!(fmt, "-"),
             Mul => write!(fmt, "*"),
@@ -413,7 +437,13 @@ mod tests {
                     let cmd = vec![$($cmd),*];
                     let cmd = compile(cmd).unwrap();
                     $(
-                        assert_eq!(eval_beat(&cmd, $src), Ok($res), "t = {}, cmd: {}", $src, $text);
+                        assert_eq!(
+                            eval_beat(&cmd, $src),
+                            Ok($res.into()),
+                            "t = {}, cmd: {}",
+                            $src,
+                            $text
+                        );
                     )*
                 }
 
@@ -445,9 +475,19 @@ mod tests {
     }
 
     test_beat! {
-        name: num,
-        text: "42.69",
-        code: [Num(42.69)],
+        name: numi,
+        text: "0 42",
+        code: [NumI(0), NumI(42)],
+        eval: {
+            0.0 => 42.0,
+            0.0 => 42.0,
+        }
+    }
+
+    test_beat! {
+        name: numf,
+        text: "0.0 42.69",
+        code: [NumF(0.0), NumF(42.69)],
         eval: {
             0.0 => 42.69,
             13.0 => 42.69,
@@ -467,7 +507,7 @@ mod tests {
     test_beat! {
         name: sub,
         text: "t 1 -",
-        code: [Var, Num(1.0), Sub],
+        code: [Var, NumI(1), Sub],
         eval: {
             0.0 => -1.0,
             0.6 => -1.0,
@@ -489,7 +529,7 @@ mod tests {
     test_beat! {
         name: div,
         text: "t 2 /",
-        code: [Var, Num(2.0), Div],
+        code: [Var, NumI(2), Div],
         eval: {
             0.0 => 0.0,
             1.0 => 0.0,
@@ -502,14 +542,14 @@ mod tests {
     test_beat! {
         name: div_0,
         text: "1 0 /",
-        code: [Num(1.0), Num(0.0), Div],
+        code: [NumI(1), NumI(0), Div],
         eval: { 1.0 => 0.0 },
     }
 
     test_beat! {
         name: rem,
         text: "t 7 %",
-        code: [Var, Num(7.0), Mod],
+        code: [Var, NumI(7), Mod],
         eval: {
             -8.0 => -1.0,
             -1.0 => -1.0,
@@ -522,14 +562,14 @@ mod tests {
     test_beat! {
         name: rem_0,
         text: "7 0 %",
-        code: [Num(7.0), Num(0.0), Mod],
+        code: [NumI(7), NumI(0), Mod],
         eval: { 1.0 => 0.0 },
     }
 
     test_beat! {
         name: shl,
         text: "1.1 t <<",
-        code: [Num(1.1), Var, Shl],
+        code: [NumF(1.1), Var, Shl],
         eval: {
             -60.0 => 16.0,
             0.0 => 1.0,
@@ -543,7 +583,7 @@ mod tests {
     test_beat! {
         name: shr,
         text: "1024.1 t >>",
-        code: [Num(1024.1), Var, Shr],
+        code: [NumF(1024.1), Var, Shr],
         eval: {
             -60.0 => 64.0,
             0.0 => 1024.0,
@@ -558,21 +598,21 @@ mod tests {
     test_beat! {
         name: and,
         text: "1 2 &",
-        code: [Num(1.0), Num(2.0), And],
+        code: [NumI(1), NumI(2), And],
         eval: { 1.0 => 0.0 },
     }
 
     test_beat! {
         name: orr,
         text: "1 2 |",
-        code: [Num(1.0), Num(2.0), Orr],
+        code: [NumI(1), NumI(2), Orr],
         eval: { 1.0 => 3.0 },
     }
 
     test_beat! {
         name: xor,
         text: "t -1 ^",
-        code: [Var, Num(-1.0), Xor],
+        code: [Var, NumI(-1), Xor],
         eval: {
             0.0 => -1.0,
             3.2 => (!3i64) as f64,
@@ -582,7 +622,7 @@ mod tests {
     test_beat! {
         name: addf,
         text: "0.1 t +.",
-        code: [Num(0.1), Var, AddF],
+        code: [NumF(0.1), Var, AddF],
         eval: {
             0.0 => 0.1,
             -2.0 => -1.9,
@@ -593,7 +633,7 @@ mod tests {
     test_beat! {
         name: subf,
         text: "0 t -.",
-        code: [Num(0.0), Var, SubF],
+        code: [NumI(0), Var, SubF],
         eval: {
             -6.9 => 6.9,
             0.0 => 0.0,
@@ -604,7 +644,7 @@ mod tests {
     test_beat! {
         name: mulf,
         text: "7.5 t *.",
-        code: [Num(7.5), Var, MulF],
+        code: [NumF(7.5), Var, MulF],
         eval: {
             4.2 => 31.5,
             0.0 => 0.0,
@@ -615,7 +655,7 @@ mod tests {
     test_beat! {
         name: divf,
         text: "7.5 t /.",
-        code: [Num(7.5), Var, DivF],
+        code: [NumF(7.5), Var, DivF],
         eval: {
             4.2 => 1.7857142857142856,
             0.0 => 0.0,
@@ -626,7 +666,7 @@ mod tests {
     test_beat! {
         name: modf,
         text: "7.5 t %.",
-        code: [Num(7.5), Var, ModF],
+        code: [NumF(7.5), Var, ModF],
         eval: {
             4.2 => 3.3,
             0.0 => 0.0,
@@ -637,7 +677,7 @@ mod tests {
     test_beat! {
         name: lt,
         text: "t 64 <",
-        code: [Var, Num(64.0), Lt],
+        code: [Var, NumI(64), Lt],
         eval: {
             0.0 => 1.0,
             64.0 => 0.0,
@@ -648,7 +688,7 @@ mod tests {
     test_beat! {
         name: gt,
         text: "t 64 >",
-        code: [Var, Num(64.0), Gt],
+        code: [Var, NumI(64), Gt],
         eval: {
             0.0 => 0.0,
             64.0 => 0.0,
@@ -659,7 +699,7 @@ mod tests {
     test_beat! {
         name: leq,
         text: "t 64 <=",
-        code: [Var, Num(64.0), Leq],
+        code: [Var, NumI(64), Leq],
         eval: {
             0.0 => 1.0,
             64.0 => 1.0,
@@ -670,7 +710,7 @@ mod tests {
     test_beat! {
         name: geq,
         text: "t 64 >=",
-        code: [Var, Num(64.0), Geq],
+        code: [Var, NumI(64), Geq],
         eval: {
             0.0 => 0.0,
             64.0 => 1.0,
@@ -681,7 +721,7 @@ mod tests {
     test_beat! {
         name: eq,
         text: "t 64 ==",
-        code: [Var, Num(64.0), Eq],
+        code: [Var, NumI(64), Eq],
         eval: {
             0.0 => 0.0,
             64.0 => 1.0,
@@ -692,7 +732,7 @@ mod tests {
     test_beat! {
         name: neq,
         text: "t 64 !=",
-        code: [Var, Num(64.0), Neq],
+        code: [Var, NumI(64), Neq],
         eval: {
             0.0 => 1.0,
             64.0 => 0.0,
@@ -703,33 +743,33 @@ mod tests {
     test_beat! {
         name: cond,
         text: "3 2 t ?",
-        code: [Num(3.0), Num(2.0), Var, Cond],
+        code: [NumI(3), NumI(2), Var, Cond],
         eval: {
-            0.0 => 2.0,
-            1.0 => 3.0,
-            2.0 => 3.0,
+            0 => 2,
+            1 => 3,
+            2 => 3,
         }
     }
 
     test_beat! {
         name: color,
         text: "!fg:F00 !bg:00F 0",
-        code: [Fg(Color([0xFF, 0x00, 0x00])), Bg(Color([0x00, 0x00, 0xFF])), Num(0.0)],
-        eval: { 0.0 => 0.0 },
+        code: [Fg(Color([0xFF, 0x00, 0x00])), Bg(Color([0x00, 0x00, 0xFF])), NumI(0)],
+        eval: { 0 => 0 },
     }
 
     test_beat! {
         name: khz,
         text: "!khz:8 8000",
-        code: [Khz(8), Num(8000.0)],
-        eval: { 0.0 => 8000.0 },
+        code: [Khz(8), NumI(8000)],
+        eval: { 0 => 8000 },
     }
 
     test_beat! {
         name: comment,
         text: "#bbcurated 42",
-        code: [Comment("bbcurated".into()), Num(42.0)],
-        eval: { 0.0 => 42.0 },
+        code: [Comment("bbcurated".into()), NumI(42)],
+        eval: { 0 => 42 },
     }
 
     #[test]
@@ -751,14 +791,14 @@ mod tests {
     test_beat! {
         name: even,
         text: "3 2 t 2 % 0 == ?",
-        code: [Num(3.0), Num(2.0), Var, Num(2.0), Mod, Num(0.0), Eq, Cond],
+        code: [NumI(3), NumI(2), Var, NumI(2), Mod, NumI(0), Eq, Cond],
         eval: {
-            0.0 => 3.0,
-            1.0 => 2.0,
-            2.0 => 3.0,
-            3.0 => 2.0,
-            4.0 => 3.0,
-            5.0 => 2.0,
+            0 => 3,
+            1 => 2,
+            2 => 3,
+            3 => 2,
+            4 => 3,
+            5 => 2,
         }
     }
 
@@ -787,7 +827,7 @@ mod tests {
     test_beat! {
         name: pow,
         text: "t 3.5 pow",
-        code: [Var, Num(3.5), Pow],
+        code: [Var, NumF(3.5), Pow],
         eval: {
             0.0 => 0.0,
             1.0 => 1.0,
@@ -799,51 +839,51 @@ mod tests {
     test_beat! {
         name: arr,
         text: "1 2 3 t [3",
-        code: [Num(1.0), Num(2.0), Num(3.0), Var, Arr(3)],
+        code: [NumI(1), NumI(2), NumI(3), Var, Arr(3)],
         eval: {
-            -4.0 => 3.0,
-            -3.0 => 1.0,
-            -2.0 => 2.0,
-            -1.0 => 3.0,
-            0.0 => 1.0,
-            1.0 => 2.0,
-            2.0 => 3.0,
-            3.0 => 1.0,
-            4.0 => 2.0,
-            5.0 => 3.0,
-            6.0 => 1.0,
+            -4 => 3,
+            -3 => 1,
+            -2 => 2,
+            -1 => 3,
+            0 => 1,
+            1 => 2,
+            2 => 3,
+            3 => 1,
+            4 => 2,
+            5 => 3,
+            6 => 1,
         }
     }
 
     test_beat! {
         name: arr_pops,
         text: "10 1 2 3 t [3 +",
-        code: [Num(10.0), Num(1.0), Num(2.0), Num(3.0), Var, Arr(3), Add],
+        code: [NumI(10), NumI(1), NumI(2), NumI(3), Var, Arr(3), Add],
         eval: {
-            0.0 => 11.0,
-            1.0 => 12.0,
-            2.0 => 13.0,
+            0 => 11,
+            1 => 12,
+            2 => 13,
         }
     }
 
     test_beat! {
         name: arr_pushes_zero,
         text: "1 2 3 [0",
-        code: [Num(1.0), Num(2.0), Num(3.0), Arr(0)],
+        code: [NumI(1), NumI(2), NumI(3), Arr(0)],
         eval: {
-            0.0 => 0.0,
-            1.0 => 0.0,
-            2.0 => 0.0,
-            3.0 => 0.0,
-            4.0 => 0.0,
+            0 => 0,
+            1 => 0,
+            2 => 0,
+            3 => 0,
+            4 => 0,
         }
     }
 
     #[test]
     fn test_arr_stack_too_small() {
         use Cmd::*;
-        let cmd = compile(vec![Num(1.0), Num(2.0), Num(3.0), Arr(3)]).unwrap();
-        assert_eq!(eval_beat(&cmd, 0.0), Err(()), "t = {}, cmd: {}", 0.0, cmd);
+        let cmd = compile(vec![NumI(1), NumI(2), NumI(3), Arr(3)]).unwrap();
+        assert_eq!(eval_beat(&cmd, 0.0), Err(()), "t = {}, cmd: {}", 0.0, &cmd);
     }
 
     #[test]
@@ -858,21 +898,21 @@ mod tests {
     test_beat! {
         name: example1,
         text: "t 1 >> t | tan 128 +",
-        code: [Var, Num(1.0), Shr, Var, Orr, Tan, Num(128.0), Add],
+        code: [Var, NumI(1), Shr, Var, Orr, Tan, NumI(128), Add],
         eval: { 1.0 => 129.0 },
     }
 
     test_beat! {
         name: example2,
         text: "t 1 >> t | tan 128 +.",
-        code: [Var, Num(1.0), Shr, Var, Orr, Tan, Num(128.0), AddF],
+        code: [Var, NumI(1), Shr, Var, Orr, Tan, NumI(128), AddF],
         eval: { 1.0 => 129.5574077246549 },
     }
 
     test_beat! {
         name: example3,
         text: "2.5 1.2 %.",
-        code: [Num(2.5), Num(1.2), ModF],
+        code: [NumF(2.5), NumF(1.2), ModF],
         eval: { 0.0 => 0.10000000000000009 },
     }
 
@@ -888,21 +928,21 @@ mod tests {
         text: "t 10 / t 2 t 10 >> pow * sin + sin 64 * 128 +",
         code: [
             Var,
-            Num(10.0),
+            NumI(10),
             Div,
             Var,
-            Num(2.0),
+            NumI(2),
             Var,
-            Num(10.0),
+            NumI(10),
             Shr,
             Pow,
             Mul,
             Sin,
             Add,
             Sin,
-            Num(64.0),
+            NumI(64),
             Mul,
-            Num(128.0),
+            NumI(128),
             Add,
         ],
         eval: { 3.0 => 128.0 },
@@ -910,26 +950,36 @@ mod tests {
 
     test_beat! {
         name: example6,
-        text: "t 10 /. t 2 t 10 >> pow *. sin +. sin 64 *. 128 +.",
+        text: "t 10.0 /. t 2.0 t 10.0 >> pow *. sin +. sin 64.0 *. 128.0 +.",
         code: [
             Var,
-            Num(10.0),
+            NumF(10.0),
             DivF,
             Var,
-            Num(2.0),
+            NumF(2.0),
             Var,
-            Num(10.0),
+            NumF(10.0),
             Shr,
             Pow,
             MulF,
             Sin,
             AddF,
             Sin,
-            Num(64.0),
+            NumF(64.0),
             MulF,
-            Num(128.0),
+            NumF(128.0),
             AddF,
         ],
-        eval: { 3.0 => 155.324961718789 },
+        eval: { 3 => 155.324961718789 },
+    }
+
+    #[test]
+    fn test_overflow() {
+        // The typed evaluator ensures that we don't make as many unnecessary
+        // conversions, and so we keep more precision.
+        use Cmd::*;
+        let code = compile(vec![Var, Var, Mul]).unwrap();
+        let res: u8 = eval_beat(&code, 1_073_741_825.0).unwrap().into();
+        assert_eq!(res, (1_073_741_825i64.wrapping_mul(1_073_741_825)) as u8);
     }
 }

@@ -17,7 +17,7 @@ pub fn generate_video(code: &Program, fname: &str) {
     let data = {
         let mut data = vec![0; size];
         for i in 0..size {
-            data[i] = bytebeat::eval_beat(&code, i as f64).unwrap() as u8;
+            data[i] = bytebeat::eval_beat(&code, i as f64).unwrap().into();
         }
         data
     };
