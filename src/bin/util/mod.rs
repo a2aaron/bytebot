@@ -1,6 +1,6 @@
 extern crate bytebeat;
 
-use bytebeat::Cmd;
+use bytebeat::Program;
 use bytebeat::encode::Color;
 
 const WIDTH: usize = 512;
@@ -10,7 +10,7 @@ const HZ: usize = 8000;
 const FPS: usize = 30;
 const FRAME_COUNT: usize = SIZE * FPS / HZ;
 
-pub fn generate_video(code: &[Cmd], fname: &str) {
+pub fn generate_video(code: &Program, fname: &str) {
     // Generate the audio data
     let data = {
         let mut data = [0; SIZE];

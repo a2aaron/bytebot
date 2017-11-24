@@ -6,7 +6,7 @@ extern crate tokio_core;
 use std::io::{self, Read};
 use std::env;
 
-use bytebeat::Cmd;
+use bytebeat::Program;
 use dotenv::dotenv;
 use egg_mode::{media, Token, KeyPair};
 use egg_mode::tweet::DraftTweet;
@@ -23,7 +23,7 @@ fn main() {
 
     println!("Generating beat...");
     let code = generate_beat();
-    let text = bytebeat::format_beat(&code);
+    let text = format!("{}", code);
     println!("Generated!");
     println!("Using formula: {}", text);
 
@@ -46,14 +46,15 @@ fn main() {
     println!("Posted!");
 }
 
-fn generate_beat() -> Vec<Cmd> {
+fn generate_beat() -> Program {
     println!("Reading a beat from stdin:");
     let mut buf = String::new();
     std::io::stdin().read_to_string(&mut buf).unwrap();
-    bytebeat::parse_beat(&buf).unwrap()
+    let cmds = bytebeat::parse_beat(&buf).unwrap();
+    bytebeat::compile(cmds).unwrap()
 }
 
-fn encode_video(code: &[Cmd]) -> io::Result<Vec<u8>> {
+fn encode_video(code: &Program) -> io::Result<Vec<u8>> {
     util::generate_video(&code, "out.mp4");
     let mut data = Vec::new();
     std::fs::File::open("out.mp4")?.read_to_end(&mut data)?;

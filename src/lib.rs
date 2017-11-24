@@ -34,10 +34,32 @@ pub enum Cmd {
     Arr(usize),
 }
 
-pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
+pub struct Program {
+    code: Vec<Cmd>,
+    bg: Option<[u8; 3]>,
+    fg: Option<[u8; 3]>,
+    khz: Option<u8>,
+}
+
+pub fn compile(cmds: Vec<Cmd>) -> Result<Program, ()> {
+    Ok(Program {
+        code: cmds,
+        bg: None,
+        fg: None,
+        khz: None,
+    })
+}
+
+impl std::fmt::Display for Program {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(fmt, "{}", format_beat(&self.code))
+    }
+}
+
+pub fn eval_beat(program: &Program, t: f64) -> Result<f64, ()> {
     use Cmd::*;
     let mut stack = Vec::new();
-    for cmd in cmds {
+    for cmd in &program.code {
         match *cmd {
             Var => stack.push(t),
             Num(y) => stack.push(y),
@@ -319,7 +341,8 @@ mod tests {
                 #[test]
                 fn test_eval() {
                     use Cmd::*;
-                    let cmd = [$($cmd),*];
+                    let cmd = vec![$($cmd),*];
+                    let cmd = compile(cmd).unwrap();
                     $(
                         assert_eq!(eval_beat(&cmd, $src), Ok($res), "t = {}, cmd: {}", $src, $text);
                     )*
@@ -713,41 +736,17 @@ mod tests {
     #[test]
     fn test_arr_stack_too_small() {
         use Cmd::*;
-        let cmd = [Num(1.0), Num(2.0), Num(3.0), Arr(3)];
-        assert_eq!(
-            eval_beat(&cmd, 0.0),
-            Err(()),
-            "t = {}, cmd: {}",
-            0.0,
-            format_beat(&cmd)
-        );
+        let cmd = compile(vec![Num(1.0), Num(2.0), Num(3.0), Arr(3)]).unwrap();
+        assert_eq!(eval_beat(&cmd, 0.0), Err(()), "t = {}, cmd: {}", 0.0, cmd);
     }
 
     #[test]
     fn test_eval_empty_arr_is_err() {
         use Cmd::*;
-        let cmd = [Arr(0)];
-        assert_eq!(
-            eval_beat(&cmd, 0.0),
-            Err(()),
-            "t = {}, cmd: {}",
-            0.0,
-            format_beat(&cmd)
-        );
-        assert_eq!(
-            eval_beat(&cmd, 1.0),
-            Err(()),
-            "t = {}, cmd: {}",
-            1.0,
-            format_beat(&cmd)
-        );
-        assert_eq!(
-            eval_beat(&cmd, 2.0),
-            Err(()),
-            "t = {}, cmd: {}",
-            2.0,
-            format_beat(&cmd)
-        );
+        let cmd = compile(vec![Arr(0)]).unwrap();
+        assert_eq!(eval_beat(&cmd, 0.0), Err(()), "t = {}, cmd: {}", 0.0, cmd);
+        assert_eq!(eval_beat(&cmd, 1.0), Err(()), "t = {}, cmd: {}", 1.0, cmd);
+        assert_eq!(eval_beat(&cmd, 2.0), Err(()), "t = {}, cmd: {}", 2.0, cmd);
     }
 
     test_beat! {
