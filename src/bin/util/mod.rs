@@ -1,7 +1,7 @@
 extern crate bytebeat;
 
 use bytebeat::Program;
-use bytebeat::encode::Color;
+use bytebeat::encode::{EncoderConfig, Color};
 
 const WIDTH: usize = 512;
 const HEIGHT: usize = 256;
@@ -22,9 +22,10 @@ pub fn generate_video(code: &Program, fname: &str) {
         data
     };
 
-    let mut encoder = bytebeat::encode::EncoderConfig::with_dimensions(WIDTH, HEIGHT)
+    let mut encoder = EncoderConfig::with_dimensions(WIDTH, HEIGHT)
         .fps(FPS)
         .audio_rate(hz)
+        .output_dimensions(WIDTH * 2, HEIGHT * 2)
         .audio_path("audio.pcm")
         .video_path("video.ppm")
         .build()
