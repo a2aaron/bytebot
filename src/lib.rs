@@ -32,6 +32,9 @@ pub enum Cmd {
     Neq,
     Cond,
     Arr(usize),
+    Fg(u8, u8, u8),
+    Bg(u8, u8, u8),
+    Khz(u8),
 }
 
 pub struct Program {
@@ -41,12 +44,37 @@ pub struct Program {
     khz: Option<u8>,
 }
 
+impl Program {
+    pub fn bg(&self) -> Option<[u8; 3]> {
+        self.bg
+    }
+
+    pub fn fg(&self) -> Option<[u8; 3]> {
+        self.fg
+    }
+
+    pub fn hz(&self) -> Option<u32> {
+        self.khz.map(|x| x as u32 * 1000)
+    }
+}
+
 pub fn compile(cmds: Vec<Cmd>) -> Result<Program, ()> {
+    use Cmd::*;
+    let (mut bg, mut fg, mut khz) = (None, None, None);
+    for cmd in &cmds {
+        match *cmd {
+            Bg(r, g, b) => bg = Some([r, g, b]),
+            Fg(r, g, b) => fg = Some([r, g, b]),
+            Khz(k) => khz = Some(k),
+            _ => (),
+        }
+    }
+
     Ok(Program {
         code: cmds,
-        bg: None,
-        fg: None,
-        khz: None,
+        bg,
+        fg,
+        khz,
     })
 }
 
@@ -238,6 +266,8 @@ pub fn eval_beat(program: &Program, t: f64) -> Result<f64, ()> {
                     stack.push(vec[index as usize]);
                 }
             }
+            // These have no runtime effect
+            Fg(..) | Bg(..) | Khz(..) => (),
         }
     }
     stack.pop().ok_or(())
@@ -275,6 +305,21 @@ pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
             "!=" => Ok(Neq),
             "?" => Ok(Cond),
             x if x.starts_with('[') => x[1..].parse().map(Arr).map_err(|_| x),
+            x if x.starts_with("!fg:") => {
+                let raw = u16::from_str_radix(&x[4..], 16).map_err(|_| x)?;
+                let r = (raw >> 8 & 0xF) as u8;
+                let g = (raw >> 4 & 0xF) as u8;
+                let b = (raw & 0xF) as u8;
+                Ok(Fg(r << 4 | r, g << 4 | g, b << 4 | b))
+            }
+            x if x.starts_with("!bg:") => {
+                let raw = u16::from_str_radix(&x[4..], 16).map_err(|_| x)?;
+                let r = (raw >> 8 & 0xF) as u8;
+                let g = (raw >> 4 & 0xF) as u8;
+                let b = (raw & 0xF) as u8;
+                Ok(Bg(r << 4 | r, g << 4 | g, b << 4 | b))
+            }
+            x if x.starts_with("!khz:") => x[5..].parse().map(Khz).map_err(|_| x),
             x => x.parse().map(Num).map_err(|_| x),
         })
         .collect()
@@ -313,6 +358,9 @@ impl std::fmt::Display for Cmd {
             Neq => write!(fmt, "!="),
             Cond => write!(fmt, "?"),
             Arr(size) => write!(fmt, "[{}", size),
+            Fg(r, g, b) => write!(fmt, "!fg:{:X}{:X}{:X}", r & 0xF, g & 0xF, b & 0xF),
+            Bg(r, g, b) => write!(fmt, "!bg:{:X}{:X}{:X}", r & 0xF, g & 0xF, b & 0xF),
+            Khz(khz) => write!(fmt, "!khz:{}", khz),
         }
     }
 }
@@ -640,6 +688,20 @@ mod tests {
             1.0 => 3.0,
             2.0 => 3.0,
         }
+    }
+
+    test_beat! {
+        name: color,
+        text: "!fg:F00 !bg:00F 0",
+        code: [Fg(0xFF, 0x00, 0x00), Bg(0x00, 0x00, 0xFF), Num(0.0)],
+        eval: { 0.0 => 0.0 },
+    }
+
+    test_beat! {
+        name: khz,
+        text: "!khz:8 8000",
+        code: [Khz(8), Num(8000.0)],
+        eval: { 0.0 => 8000.0 },
     }
 
     test_beat! {
