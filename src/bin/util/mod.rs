@@ -5,16 +5,18 @@ use bytebeat::encode::Color;
 
 const WIDTH: usize = 512;
 const HEIGHT: usize = 256;
-const SIZE: usize = WIDTH * HEIGHT * 2;
-const HZ: usize = 8000;
 const FPS: usize = 30;
-const FRAME_COUNT: usize = SIZE * FPS / HZ;
 
 pub fn generate_video(code: &Program, fname: &str) {
+    let hz = code.hz().unwrap_or(8000) as usize;
+    let frame_count = FPS * 30;
+    let size = frame_count * hz / FPS;
+    let full_width = size / HEIGHT;
+
     // Generate the audio data
     let data = {
-        let mut data = [0; SIZE];
-        for i in 0..SIZE {
+        let mut data = vec![0; size];
+        for i in 0..size {
             data[i] = bytebeat::eval_beat(&code, i as f64).unwrap() as u8;
         }
         data
@@ -22,7 +24,7 @@ pub fn generate_video(code: &Program, fname: &str) {
 
     let mut encoder = bytebeat::encode::EncoderConfig::with_dimensions(WIDTH, HEIGHT)
         .fps(FPS)
-        .audio_rate(HZ)
+        .audio_rate(hz)
         .audio_path("audio.pcm")
         .video_path("video.ppm")
         .build()
@@ -31,13 +33,18 @@ pub fn generate_video(code: &Program, fname: &str) {
     encoder.write_audio(&data).unwrap();
 
     let mut image = [Color([0, 0, 0]); WIDTH * HEIGHT];
-    for frame in 0..FRAME_COUNT {
+    for frame in 0..frame_count {
+        let x = frame * full_width / frame_count;
+        let bg_offset = x.saturating_sub(WIDTH / 2).min(full_width - WIDTH);
+        let cursor_col = x - bg_offset;
+
         render_frame(
             &mut image,
             &data,
-            frame,
-            Color([255, 100, 16]),
-            Color([64, 128, 255]),
+            bg_offset,
+            cursor_col,
+            code.bg().unwrap_or(Color([255, 100, 16])),
+            code.fg().unwrap_or(Color([64, 128, 255])),
             Color([255, 255, 255]),
         );
         // Output a frame
@@ -51,35 +58,24 @@ pub fn generate_video(code: &Program, fname: &str) {
 fn render_frame(
     image: &mut [Color],
     data: &[u8],
-    frame: usize,
+    bg_offset: usize,
+    cursor_col: usize,
     bg_color: Color,
     wave_color: Color,
     scan_color: Color,
 ) {
-    // Compute the offsets
-    let (col, off) = if frame < FRAME_COUNT / 4 {
-        (WIDTH * frame * 2 / FRAME_COUNT, 0)
-    } else if frame < 3 * FRAME_COUNT / 4 {
-        (
-            WIDTH / 2,
-            (frame - FRAME_COUNT / 4) * WIDTH * 2 / FRAME_COUNT,
-        )
-    } else {
-        (WIDTH * (frame - FRAME_COUNT / 2) * 2 / FRAME_COUNT, WIDTH)
-    };
-
     // Draw the background
     for i in 0..WIDTH * HEIGHT {
         let idx = (i % HEIGHT) * WIDTH + (i / HEIGHT);
-        let x = data[i + off * HEIGHT];
+        let x = data[i + bg_offset * HEIGHT];
         image[idx] = bg_color * x;
     }
 
     // Draw the waveform
-    let x = WIDTH * frame * 2 / FRAME_COUNT;
+    let waveform_col = bg_offset + cursor_col;
     for row in 0..HEIGHT - 1 {
-        let x0 = data[x * HEIGHT + row];
-        let x1 = data[x * HEIGHT + row + 1];
+        let x0 = data[waveform_col * HEIGHT + row];
+        let x1 = data[waveform_col * HEIGHT + row + 1];
         let col = row * WIDTH / HEIGHT;
         let (bot, top) = (x0.min(x1) as usize, x0.max(x1) as usize);
         let mid = (bot + top) / 2;
@@ -93,6 +89,6 @@ fn render_frame(
 
     // Draw the cursor
     for row in 0..HEIGHT {
-        image[row * WIDTH + col] = scan_color;
+        image[row * WIDTH + cursor_col] = scan_color;
     }
 }
