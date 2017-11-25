@@ -152,8 +152,11 @@ impl Encoder {
             .arg(&self.video_path)
             .args(&["-f", "u8", "-ar", &hz, "-ac", "1", "-i"])
             .arg(&self.audio_path)
-            .args(&["-pix_fmt", "yuv420p", "-y"])
-            .args(&["-sws_flags", "neighbor", "-s", &size])
+            .args(&["-pix_fmt", "yuv420p", "-y", "-movflags", "+faststart"])
+            .args(&["-c:a", "aac", "-b:a", "96k", "-ar", "16k"])
+            .args(&["-c:v", "libx264", "-b:v", "768K"])
+            .args(&["-s", &size])
+        // "-sws_flags", "neighbor"
             .arg(out)
             .spawn()
     }

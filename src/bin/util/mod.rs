@@ -5,7 +5,7 @@ use bytebeat::encode::{EncoderConfig, Color};
 
 const WIDTH: usize = 512;
 const HEIGHT: usize = 256;
-const FPS: usize = 30;
+const FPS: usize = 15;
 
 pub fn generate_video(code: &Program, fname: &str) {
     let hz = code.hz().unwrap_or(8000) as usize;
@@ -25,7 +25,7 @@ pub fn generate_video(code: &Program, fname: &str) {
     let mut encoder = EncoderConfig::with_dimensions(WIDTH, HEIGHT)
         .fps(FPS)
         .audio_rate(hz)
-        .output_dimensions(WIDTH * 2, HEIGHT * 2)
+        .output_dimensions(640, 360)
         .audio_path("audio.pcm")
         .video_path("video.ppm")
         .build()
@@ -82,14 +82,19 @@ fn render_frame(
 
         for r in x0.min(mid)..x0.max(mid) + 1 {
             image[(255 - r) * WIDTH + col] = wave_color;
+            image[(255 - r) * WIDTH + col + 1] = wave_color;
         }
         for r in x1.min(mid)..x1.max(mid) + 1 {
             image[(255 - r) * WIDTH + col + 1] = wave_color;
+            image[(255 - r) * WIDTH + col + 2] = wave_color;
         }
     }
 
     // Draw the cursor
     for row in 0..HEIGHT {
+        if cursor_col > 0 {
+            image[row * WIDTH + cursor_col] = scan_color;
+        }
         image[row * WIDTH + cursor_col] = scan_color;
     }
 }
