@@ -26,7 +26,11 @@ impl Code {
                 // Thus the net effect of Arr is to reduce the stack size by x.
                 Arr(x) => -(x as i32),
                 Cond => -2,
-                _ => -1,
+                // Split these into multiple branches to make rustfmt stop complaining
+                Add | Sub | Mul | Div | Mod => -1,
+                Shl | Shr | And | Orr | Xor => -1,
+                Pow | AddF | SubF | MulF | DivF | ModF => -1,
+                Lt | Gt | Leq | Geq | Eq | Neq => -1,
             };
             if stack_size <= 0 {
                 return Err("Invalid bytebeat");
