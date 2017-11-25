@@ -453,46 +453,71 @@ pub fn format_beat(cmds: &[Cmd]) -> String {
 mod tests {
     use super::*;
 
+    macro_rules! test_invalid {
+        (
+            name: $name:ident,
+            code: [$($cmd:expr),* $(,)*],
+        ) => {
+            mod $name {
+                use super::*;
+
+                #[test]
+                fn test_err() {
+                    use Cmd::*;
+                    let cmd = vec![$($cmd),*];
+                    let result = Code::new(cmd);
+                    assert!(result.is_err());
+                }
+            }
+        }
+    }
+
+    test_invalid!{
+        name: add_empty,
+        code: [Add],
+    }
+
+    test_invalid!{
+        name: add_small_stack,
+        code: [Var, Add],
+    }
+
+    test_invalid!{
+        name: cond_small_stack,
+        code: [Var, Var, Cond],
+    }
+
+    test_invalid!{
+        name: empty_arr_is_err,
+        code: [Arr(0)],
+    }
+
+    test_invalid!{
+        name: arr_stack_too_small,
+        code: [Var, Arr(1)],
+    }
+
+    test_invalid!{
+        name: arr_stack_too_small2,
+        code: [NumI(1), NumI(2), NumI(3), Arr(3)],
+    }
+
+    test_invalid!{
+        name: sin_empty,
+        code: [Sin],
+    }
+
+    test_invalid!{
+        name: should_not_dip_below_zero,
+        code: [Var, Var, Var, Add, Add, Add, Var],
+    }
+
     #[test]
-    fn test_code_new_err() {
+    fn test_comments_ok() {
         use Cmd::*;
-        // +
-        let mut result = Code::new(vec![Add]);
-        assert!(result.is_err());
-
-        // t +
-        result = Code::new(vec![Var, Add]);
-        assert!(result.is_err());
-
-        // t t ?
-        result = Code::new(vec![Var, Var, Cond]);
-        assert!(result.is_err());
-
-        // [0
-        result = Code::new(vec![Arr(0)]);
-        assert!(result.is_err());
-
-        // t [1
-        result = Code::new(vec![Var, Arr(1)]);
-        assert!(result.is_err());
-
-        // 1 2 3 [3
-        result = Code::new(vec![NumI(1), NumI(2), NumI(3), Arr(3)]);
-        assert!(result.is_err());
-
-        // Test that one argument operations are still an error
-        // if the stack is test_eval_empty_arr_is_err
-        result = Code::new(vec![Sin]);
-        assert!(result.is_err());
-
-        // Test that stack size should not dip below zero
-        // t t t * * * t
-        result = Code::new(vec![Var, Var, Var, Add, Add, Add, Var]);
-        assert!(result.is_err());
-
         // These should always be valid even on an empty stack
         // !khz 8 !bg:000 !fg:000 #Hello
-        result = Code::new(vec![
+        let result = Code::new(vec![
             Khz(8),
             Bg(Color([0, 0, 0])),
             Fg(Color([0, 0, 0])),
