@@ -4,6 +4,39 @@ use encode::Color;
 
 
 #[derive(Debug, PartialEq)]
+pub struct Code {
+    code: Vec<Cmd>,
+}
+
+impl Code {
+    fn new(code: Vec<Cmd>) -> Result<Code,()> {
+        use self::Cmd::*;
+
+        let mut stack_size = 0 as i32;
+        for cmd in code.iter() {
+            stack_size += match *cmd {
+                Var | NumF(_) | NumI(_) => 1,
+                Fg(_) | Bg(_) | Khz(_) | Comment(_) => continue,
+                // These all pop 1 value off the stack and push 1 
+                // value back on, so the net effect is no stack change
+                Sin | Cos | Tan => 0,
+                // Arr(x) pops a value off the stack (called the index)
+                // then pops x more values off the stack. Finally, it 
+                // pushes one value back onto the stack based on the index
+                // Thus the net effect of Arr is to reduce the stack size by x.
+                Arr(x) => -(x as i32),
+                Cond => -2,
+                _ => -1
+            };
+            if stack_size <= 0 {
+                return Err(())
+            }
+        }
+        Ok(Code {code: code})
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Cmd {
     Var,
     NumF(f64),
@@ -421,6 +454,45 @@ pub fn format_beat(cmds: &[Cmd]) -> String {
 mod tests {
     use super::*;
 
+    #[test]
+    fn test_code_new_err() {
+        use Cmd::*;
+        // +
+        let mut result = Code::new(vec![Add]);
+        assert!(result.is_err());
+
+        // t +
+        result = Code::new(vec![Var, Add]);        
+        assert!(result.is_err());
+
+        // t t ?
+        result = Code::new(vec![Var, Var, Cond]);
+        assert!(result.is_err());
+
+        // [0
+        result = Code::new(vec![Arr(0)]);
+        assert!(result.is_err());
+
+        // t [1
+        result = Code::new(vec![Var, Arr(1)]);
+        assert!(result.is_err());
+
+        // Test that one argument operations are still an error
+        // if the stack is test_eval_empty_arr_is_err
+        result = Code::new(vec![Sin]);
+        assert!(result.is_err());        
+
+        // Test that stack size should not dip below zero
+        // t t t * * * t
+        result = Code::new(vec![Var, Var, Var, Add, Add, Add, Var]);
+        assert!(result.is_err());
+
+        // These should always be valid even on an empty stack
+        // !khz 8 !bg:000 !fg:000 #Hello
+        result = Code::new(vec![Khz(8), Bg(Color([0, 0, 0])), Fg(Color([0, 0, 0])), Comment("Hello".to_string())]);
+        assert!(result.is_ok());
+    }
+
     macro_rules! test_beat {
         (
             name: $name:ident,
@@ -430,6 +502,14 @@ mod tests {
         ) => {
             mod $name {
                 use super::*;
+
+                #[test]
+                fn test_ok() {
+                    use Cmd::*;
+                    let cmd = vec![$($cmd),*];
+                    let result = Code::new(cmd);
+                    assert!(result.is_ok());
+                }
 
                 #[test]
                 fn test_eval() {
