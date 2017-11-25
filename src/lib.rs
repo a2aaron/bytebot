@@ -306,10 +306,12 @@ pub fn eval_beat<T: Into<Val>>(program: &Program, t: T) -> Val {
     stack.pop().unwrap()
 }
 
-pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
+pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, ParseError> {
     use Cmd::*;
+    use ParseError::*;
     text.split_whitespace()
-        .map(|x| match x {
+        .enumerate()
+        .map(|(i, x)| match x {
             "t" => Ok(Var),
             "+" => Ok(Add),
             "-" => Ok(Sub),
@@ -337,32 +339,41 @@ pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
             "==" => Ok(Eq),
             "!=" => Ok(Neq),
             "?" => Ok(Cond),
-            x if x.starts_with('[') => x[1..].parse().map(Arr).map_err(|_| x),
+            x if x.starts_with('[') => x[1..].parse().map(Arr).map_err(|_| BadArr(x, i)),
             x if x.starts_with("!fg:") => {
-                let raw = u16::from_str_radix(&x[4..], 16).map_err(|_| x)?;
+                let raw = u16::from_str_radix(&x[4..], 16).map_err(|_| BadFG(x, i))?;
                 let r = (raw >> 8 & 0xF) as u8;
                 let g = (raw >> 4 & 0xF) as u8;
                 let b = (raw & 0xF) as u8;
                 Ok(Fg(Color([r << 4 | r, g << 4 | g, b << 4 | b])))
             }
             x if x.starts_with("!bg:") => {
-                let raw = u16::from_str_radix(&x[4..], 16).map_err(|_| x)?;
+                let raw = u16::from_str_radix(&x[4..], 16).map_err(|_| BadBG(x, i))?;
                 let r = (raw >> 8 & 0xF) as u8;
                 let g = (raw >> 4 & 0xF) as u8;
                 let b = (raw & 0xF) as u8;
                 Ok(Bg(Color([r << 4 | r, g << 4 | g, b << 4 | b])))
             }
-            x if x.starts_with("!khz:") => x[5..].parse().map(Khz).map_err(|_| x),
+            x if x.starts_with("!khz:") => x[5..].parse().map(Khz).map_err(|_| BadKhz(x, i)),
             x if x.starts_with('#') => Ok(Comment(x[1..].into())),
             x => {
                 if x.contains('.') {
-                    x.parse().map(NumF).map_err(|_| x)
+                    x.parse().map(NumF).map_err(|_| UnknownToken(x, i))
                 } else {
-                    x.parse().map(NumI).map_err(|_| x)
+                    x.parse().map(NumI).map_err(|_| UnknownToken(x, i))
                 }
             }
         })
         .collect()
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ParseError<'a> {
+    BadArr(&'a str, usize),
+    BadFG(&'a str, usize),
+    BadBG(&'a str, usize),
+    BadKhz(&'a str, usize),
+    UnknownToken(&'a str, usize),
 }
 
 impl std::fmt::Display for Cmd {
