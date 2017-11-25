@@ -4,7 +4,7 @@ use encode::Color;
 
 
 #[derive(Debug, PartialEq)]
-pub struct Code {
+struct Code {
     cmds: Vec<Cmd>,
 }
 
@@ -99,10 +99,10 @@ impl Program {
     }
 }
 
-pub fn compile(code: Code) -> Program {
+pub fn compile(cmds: Vec<Cmd>) -> Result<Program, &'static str> {
     use Cmd::*;
     let (mut bg, mut fg, mut khz) = (None, None, None);
-    for cmd in &code.cmds {
+    for cmd in &cmds {
         match *cmd {
             Bg(col) => bg = Some(col),
             Fg(col) => fg = Some(col),
@@ -110,12 +110,14 @@ pub fn compile(code: Code) -> Program {
             _ => (),
         }
     }
-
-    Program {
-        code: code,
-        bg,
-        fg,
-        khz,
+    match Code::new(cmds) {
+        Ok(code) => Ok(Program {
+            code: code,
+            bg,
+            fg,
+            khz,
+        }),
+        Err(str) => Err(str),
     }
 }
 
@@ -318,9 +320,9 @@ pub fn eval_beat<T: Into<Val>>(program: &Program, t: T) -> Val {
     stack.pop().unwrap()
 }
 
-pub fn parse_beat(text: &str) -> Result<Code, &str> {
+pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
     use Cmd::*;
-    let cmds = text.split_whitespace()
+    text.split_whitespace()
         .map(|x| match x {
             "t" => Ok(Var),
             "+" => Ok(Add),
@@ -374,11 +376,7 @@ pub fn parse_beat(text: &str) -> Result<Code, &str> {
                 }
             }
         })
-        .collect();
-    match cmds {
-        Ok(cmds) => Code::new(cmds),
-        Err(x) => Err(x),
-    }
+        .collect()
 }
 
 impl std::fmt::Display for Cmd {
@@ -466,10 +464,18 @@ mod tests {
                 use super::*;
 
                 #[test]
-                fn test_err() {
+                fn test_err_code() {
                     use Cmd::*;
                     let cmd = vec![$($cmd),*];
                     let result = Code::new(cmd);
+                    assert!(result.is_err());
+                }
+
+                #[test]
+                fn test_err_compile() {
+                    use Cmd::*;
+                    let cmd = vec![$($cmd),*];
+                    let result = compile(cmd);
                     assert!(result.is_err());
                 }
             }
@@ -544,7 +550,7 @@ mod tests {
                 fn test_compile() {
                     use Cmd::*;
                     let cmd = vec![$($cmd),*];
-                    let result = Code::new(cmd);
+                    let result = compile(cmd);
                     assert!(result.is_ok());
                 }
 
@@ -552,8 +558,7 @@ mod tests {
                 fn test_eval() {
                     use Cmd::*;
                     let cmd = vec![$($cmd),*];
-                    let cmd = Code::new(cmd).unwrap();
-                    let cmd = compile(cmd);
+                    let cmd = compile(cmd).unwrap();
                     $(
                         assert_eq!(
                             eval_beat(&cmd, $src),
@@ -576,7 +581,6 @@ mod tests {
                 fn test_parse() {
                     use Cmd::*;
                     let cmd = vec![$($cmd),*];
-                    let cmd = Code::new(cmd).unwrap();
                     assert_eq!(parse_beat($text), Ok(cmd));
                 }
             }
@@ -902,8 +906,7 @@ mod tests {
             Fg(Color([1, 0, 0])),
             Bg(Color([0, 1, 1])),
         ];
-        let code = Code::new(code).unwrap();
-        let prog = compile(code);
+        let prog = compile(code).unwrap();
         assert_eq!(prog.hz(), Some(11_000));
         assert_eq!(prog.fg(), Some(Color([1, 0, 0])));
         assert_eq!(prog.bg(), Some(Color([0, 1, 1])));
@@ -1083,8 +1086,8 @@ mod tests {
         // The typed evaluator ensures that we don't make as many unnecessary
         // conversions, and so we keep more precision.
         use Cmd::*;
-        let code = Code::new(vec![Var, Var, Mul]).unwrap();
-        let code = compile(code);
+        let code = vec![Var, Var, Mul];
+        let code = compile(code).unwrap();
         let res: u8 = eval_beat(&code, 1_073_741_825.0).into();
         assert_eq!(res, (1_073_741_825i64.wrapping_mul(1_073_741_825)) as u8);
     }
