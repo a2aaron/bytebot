@@ -62,7 +62,7 @@ impl Program {
     }
 }
 
-pub fn compile(cmds: Vec<Cmd>) -> Result<Program, &'static str> {
+pub fn compile(cmds: Vec<Cmd>) -> Result<Program, CompileError> {
     use Cmd::*;
     let (mut bg, mut fg, mut khz) = (None, None, None);
     for cmd in &cmds {
@@ -76,7 +76,7 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, &'static str> {
     // Validate the bytebeat by checking that the stack does not get popped when empty
     let cmds = {
         let mut stack_size = 0 as i32;
-        for cmd in cmds.iter() {
+        for (i, cmd) in cmds.iter().enumerate() {
             stack_size += match *cmd {
                 Var | NumF(_) | NumI(_) => 1,
                 Fg(_) | Bg(_) | Khz(_) | Comment(_) => continue,
@@ -96,7 +96,10 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, &'static str> {
                 Lt | Gt | Leq | Geq | Eq | Neq => -1,
             };
             if stack_size <= 0 {
-                return Err("Invalid bytebeat");
+                return Err(CompileError {
+                    index: i,
+                    stack_size,
+                });
             }
         }
         Ok(cmds)
@@ -111,6 +114,12 @@ impl std::fmt::Display for Program {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(fmt, "{}", format_beat(&self.cmds))
     }
+}
+
+#[derive(Debug)]
+pub struct CompileError {
+    index: usize,
+    stack_size: i32,
 }
 
 #[derive(Clone, Copy, Debug)]
