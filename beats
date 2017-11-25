@@ -1,0 +1,470 @@
+//
+t 255 % t & t 13 >> t & -
+
+//
+t t 255 % & t 13 >> t t 8 >> t 16 >> | % & -
+
+//cycles through all t*(t>>10&) melodies, like the 42 melody
+t t 10 >> t 16 >>16 1 + & *
+
+// basic rng w/ slight bias to fliping between high and low
+t 10 >> t 14 >> ^ t 12 >> | 42319 *
+
+//odd thing
+t t >>
+
+//chaotic
+t 8 >> t & t *
+
+//Slower version, has interesting properties
+t 13 >> t & t 8 >> *
+
+//Ambient
+t 8 >> t & t 15 >> t & *
+
+//mod fractal tree cycles through different rhythms
+t % t 8 >> t 16 >> | t &
+
+//Acts like t and can be used for cool effect. Generates interesting and infinite rhythm variations.
+t t 8 >> t 16 >> | %
+
+//Add more 9s to make slower, remove to make faster.
+-0.99999999 t t *. *.
+
+//Quiet, do -1 for to make louder and change the rhythm slightly.
+t t 13 >> t & %
+
+//Not really sure.
+t 8 >> t 4 >> & t 16 >> t 8 >> & >> t *
+
+//t>>8&t variation?
+t t * t 8 >> & t /. 1 -. 
+
+// 11 khz only
+!khz:11 t t 8 >> t 4 >> ^ % 
+
+//Another t like formula. Also a sweet 11khz song
+!khz:11 t t 11 >> t 12 >> ^ % 
+
+// 22 khz only
+!khz:22 t t 4 >> t 16 >> ^ % 
+
+// i don't even
+t (t>>(t>>13&t)) * 
+
+// The 8-bit echo, to play with, edit t>>12 to a number. Powers of 2 give square waves, powers of 2-1 give sawtooth, others are from t>>8&t. Change t>>12 to t>>n to speed up or slow down. Remove -1 for starting quiet.
+t t 4 >> t 8 >> & - t 12 >> & 1 -      
+
+//WARNING LOUD! Some kind of glitchcore thing?
+t t 16 >> t 8 >> | % 2 >> t & 1 - 
+
+//Variation on above.
+t t 1 >> t 9 >> | % 2 >> t & 1 - 
+
+//Differences
+t t 8 >> & t 13 >> t & - t t 8 >> & t 13 >> - & t 8 >> t & ^ 
+
+//strange rhythms
+t t 8 >> t & t 14 >> t & | << 
+
+//
+!khz:16 t 255 % t 255 t 100000 /. +. %. &
+
+//(t>>8&t)-1 chaos remix
+t t t 8 >> t & / << 
+
+//call and respond, 11kHz
+!khz:11 t t 1 >> t 8 >> | t 13 >> ^ << 
+
+//call and respond 2, 11kHz
+!khz:11 t t 1 >> t 8 >> | t 13 >> t 12 >> & * << 
+
+//another chaos remix
+t t 8 >> t t 10 >> t & / & << 
+
+//8 or 11khz best, extremely loud grinding machine
+!khz:11 t t t 8 >> t 16 >> | % /. 
+
+//32kHz, super Sierpinski scale
+!khz:32 t 8 >> t 16 >> & t * 4 >> 
+
+//quarternoisemachine
+t t 15 >> t 8 >> t & + & t * 
+
+//tejeez's t>>5|t>>8 song, edited to last forever and be scariers
+(t*(t>>5|t>>8))>>(t>>16&t) 
+
+//Pulse wave heaven, General formula: ((BYTEBEAT1)-(BYTEBEAT2))&MULTOF2, bytebeat1 can be just "1"
+((t>>8&t)-(t>>3&t>>8|t>>16))&128 
+
+//dance of the fractals
+(t^t>>8)*(t>>16&t) 
+
+//Voice changes
+(t*t)/(t^t>>12) 
+
+//fractal heaven
+((t*t)/(t^t>>8))&t 
+
+//t>>4&t>>8 builder
+(t>>4 & t>>8)*(t>>16&t) 
+
+//dialtones
+(t>>4 & t>>8)/(t>>16&t) 
+
+//weaoowwwoooooiiinnn
+((2*(t&1)-1)*t)-(t>>8) 
+
+//eeclicks, change t>>16 to t>>16&t for a variation.
+(t>>5)*((t&1)+(t>>16)) 
+
+//speedupupup
+(((sin(t*t/10000000))>0.5)-1)*t 
+
+//filterspinsky
+(((-t&t>>12)/32)-1)*t 
+
+//triangle wave, todo: find a way to allow for any pitch.
+(((-t&128)/64)-1)*t 
+
+//tertiary operator maddness
+sin(t/40)>0.5\?t:-t 
+
+//wowaowowao
+sin(t/5+(sin(t/5))+t/1000)*64+t/2500 
+
+//signal to noise ratio
+sin(t/5+((sin(t/5)/(t/(4000*(t>>8^t>>4))))))*64+128 
+
+//sine wave harmonics and such
+(sin(sin(t/5)+t*t/(t>>8^t>>4))*100)+128 
+
+//signal decay2
+(t*t)/(t>>8&t) 
+
+//replace n with a smallish number (1 to 16 best) for a variety of effects.
+t*t/(t>>n) 
+
+//everything is broken
+(t*t/(1+(t>>9&t>>8)))&128 
+
+//fire crackles
+t*(1/t*t)^t 
+
+//
+t%(t>>10&t)
+
+//
+(t & t>>8)-(t>>16&t)
+
+//generic: (sin(sin(t/pitch))*t*t/speed)*amplitude)+128
+(sin(sin(t/10)*t*t/10000000000)*32)+128 
+
+//
+(sin(tan(t/50)*t*t/10000000000)*32)+128
+
+//Speedupslowdown
+((sin(t/10000)*t)>>4&t>>8)*t 
+
+//t>>n like formula, where n is which t>>_ to act like. It's glitchy-ish.
+(sin(t/10000)*t>>n)/(sin(t/10001)) 
+
+//Example of formula
+(sin(t/10000)*t>>8)/(sin(t/10001))&t 
+
+//non-cliping, sine form of t>>8&t
+(sin(t/10)*(((t>>8&t)%256)/2)+128) 
+
+//Sine wave heaven
+sin(t/(1+(t>>8&t>>13)))*64+128 
+
+//
+t*t/(10000*(t>>8&t>>13))
+
+//
+(t&(t>>7|t>>8|t>>16)^t)*t
+
+//Triangle wave song.
+w=Math.pow(2,t>>8&t>>13),(128/w&t)>1?w*t:-w*(t+1) 
+
+//it wont stop
+t*((t/401)^(t/400)) 
+
+//Chain dance
+(t>>(t>>(t/4)))^t 
+
+//Slow n Noisy chain
+((t/256)>>(t>>t)) 
+
+//creepy
+(sin(t/10+sin(t*Math.pow(2,t>>10))))*64+128 
+
+//ambient
+t/64>>(t>>t/4) 
+
+//conditional expression experiment. Pulse wave duty cycle cycler
+(t%256)>(cos(t/40000)*128+128)?0:128 
+
+//Use with below
+t*((t>>8&t>>3)>>(t>>16&t)) 
+
+//Use with above
+(t*(t>>8&t>>3))>>(t>>16&t) 
+
+//break
+(t*((t%(t>>8|t>>16))>>8|t>>5))^(t*(t>>5)) 
+
+//ambient
+t%(t>>(t/4)) 
+
+//more conditional expressions!
+sin(t/(t>>8&t&t>>13))>0?128:64 
+
+//morse code dialoge
+sin(t/((t>>8&t>>7)%3))>0?128:0 
+
+//alternate version (uses sine waves instead of square)
+(sin(t/((t>>8&t>>7)%3))*64)+128 
+
+//ststututterter
+(t*(-(t>>8|t|t>>9|t>>13)))^t 
+
+//basic array thing
+((Math.abs(sin(t/("34543"[t>>13&3])))+sin(t/"23432"[t>>14&3])))*40+128 
+
+//waiver
+(((t/91)&t)^((t/90)&t))-1 
+
+//glissando
+(t*t)/(t>>13 ^ t>>8) 
+
+//(t/(t%(t>>8|t>>16))) and (t*t/(t>>8|t>>13)) mashup
+(t/(t%(t>>8|t>>16)))|(t*t/(t>>8|t>>13)) 
+
+//variation
+(t/(t%(t>>8|t>>16)))|(t*t/(t>>8|t>>16)) 
+
+//run
+w=t/10,sin((w>>8&w))*64+128 
+
+//click and pop
+(sin(sin(t/10)+t/(1000-(t>>10|t>>12)))*64)+128 
+
+//click and pop 2
+(sin(sin(t/10)+t/(1000-(t>>10^t>>12)))*64)+128 
+
+//Distort
+(sin(sin(t/10)+t/(1000-(t>>10^t>>12)))*64)^(sin(sin(t/10)+t/(1000-(t>>10|t>>12)))*64)+128 
+
+//bit crusher
+(sin(sin(t/10)+t/(1000-(t>>10&t>>4))))*64+128 
+
+//Broken Signal
+t>>(t%(t>>1&t)) 
+
+//click and pop 3
+sin((t%(t>>8|t>>16))/10)*64+128 
+
+//RNG changes stuff. Replace the big number with another for a variation.
+w=(sin(t>>16)*6890866887),(t>>5|t>>8)*(t|w) 
+
+//what's left behind
+w=t%(t>>8|t>>16),b=w>>5|t>>8,(b*t)^(t*(t>>8))  
+
+//chaos
+t*t/(t>>8&t>>4) 
+
+//beep
+((t/(t>>8&t>>7))&t)-1   
+
+//t>>4&t>>8 remix
+((t/(t>>8&t>>4))&t>>8)*t  
+
+//32kHz
+t/(t%(t>>8|t>>12)) 
+
+//trill
+sin(sin(t/100)-t/((2+(t>>10&t>>12)%9)))*64+128 
+
+//(t>>5|t>>8)*t builder
+w=t%(t>>8|t>>16),b=w>>5|t>>8,(b*t)-(t*(t>>8)) 
+
+//process complete
+(1.001*t^-t*1.001)+t/(500+(t>>16&t>>8))  
+
+//dark kick
+(t&t>>4)-(t>>13&t) 
+
+//replace "30" with another number to get a new song
+r=sin(t>>12)*30,w=sin(t/(r%5))+sin(t/(r%6)),w*64+128  
+
+//green noise, black noise
+w=t%(t>>15)>0?t:-t,((w>>4&w>>8)*w)  
+
+//duo team. Based off of mu6k's "Long Line Theory"
+((t*.98)%(t>>13&t>>12))+(t%(t>>13&t>>10))  
+
+//harmony. Based off of mu6k's "Long Line Theory"
+t%50.01+t%40.1+t%30.1+t%60.01  
+
+//harmony v2. Based off of mu6k's "Long Line Theory"
+w=[1,2,3,4,3,4,1][(t>>13)%7]*t,(w%50.01+w%40.1+w%30.1+w%60.01)  
+
+//sad chords, again based off of mu6k's "Long Line Theory"
+n=50+([4,6,4,6,1,3,1,3][(t>>13)%8]),w=([1,1,1][(t>>13)%3])*t,(w%n)+(w%(n-10)+(w%(n+10)))  
+
+//glitch
+(t>>8&(t/(t>>4&t>>8))>>4)*t  
+
+//not quite a sine wave
+s=((t>>8&t>>4)%24)+1,v=128,(t*(t>>8&t>>4))&128?sin(t/s)*v+128:-sin(t/s)*v+128 
+
+//use with below
+(((t>>8)+(t>>16&t))&t>>2)*t 
+
+//use with above, tag team swish
+(((t>>8)+(t>>16&t))&t>>3)*t 
+
+//array song. First real one i promise this time.
+a=[1,1,2,3,1,1,2,3,1,1,2,4,4,4,5,5,5][(t>>12)%17],b=[5,4,3,2][(t>>16)%4],(t*b/a)%50.1+(t*b/a)%50  
+
+//reverse
+t>>(8/((t/32)%3))  
+
+//everytype smasher
+t*((((t>>8)&t>>2)*t)/(((t>>8)&t>>3)*t)+(((t>>8)&t>>3)*t)/(((t>>8)&t>>2)*t))  
+
+//muncher
+((t>>10|t>>1)&t|(t>>18&t))-t  
+
+//plucker
+((t/4)>>(t/4))>>(t>>(t/8))|t>>2  
+
+//plucker v2
+((t/4)>>t/4)|(t>>2)  
+
+//fractal glitcher
+(t & ((t%(t>>1&t))|t>>3^t>>4)>>7)-1  
+
+//fractal glitcher v2
+(t & ((t%(t>>1&t))|t>>13^t>>5)>>7)-1 
+
+//jumper
+((t/1000)^(t/1001))*t    
+
+//noisecore synthcore
+t/((t%(t>>13&t)))  
+
+//cyclic
+t/(t^(t+1+(t>>16))) 
+
+(sin(t/4)- sin(t/4*3)/9+ sin(t/4*5)/25- sin(t/4*7)/49+ sin(t/4*9)/81- sin(t/4*11)/121+ sin(t/4*13)/169- sin(t/4*15)/225+ sin(t/4*17)/289- sin(t/4*19)/361)*16+128
+
+(sin(t/4)+ sin(t/4*3)/3+ sin(t/4*5)/5+ sin(t/4*7)/7+ sin(t/4*9)/9+ sin(t/4*11)/11+ sin(t/4*13)/13+ sin(t/4*15)/15+ sin(t/4*17)/17+ sin(t/4*19)/19)*16+128
+
+//random ambiance, change what's in tan() for a different sound track.
+tan(t>>1|t)+128 
+
+//pulsar hell
+sin(sin(t/100)*t/10000)*64+128 
+
+//slightly too large
+sin(t/100)*(128+(t/1000000000))+128 
+
+//weowoo
+sin(t/(1024-(t>>10&t>>13))+(sin(t/8))*(Math.abs(cos(t/16384)*1.5)+1))*64+128 
+
+//sawtooth song, 44kHz
+(t*t/(t>>8^t>>15))  
+
+//white noise filter, 32kHz recommended
+sin(floor(t/(t>>7&t>>9))*sin(floor(t/(t>>7&t>>9))))*64+128    
+
+//echo chambered
+t*[1,2,3,4,5,6,7,8][(t>>(t>>1))%10]-t  
+
+//wip
+(((t&t*5)|t>>4)+(t|t>>4*t<<8-1))^t>>12  
+
+//it takes 2 minutes to sync
+(t>>2*t>>2)%(t>>8)  
+
+//rotate
+(floor(t/(t/2000))*(t/2000))^t  
+
+//rotate2 (change 63 to any (2\^n)-1 for a slower or faster version)
+(floor(t/(t/63))*(t/63))^t  
+
+//sinsongs, 44k
+sin(t/(t>>7&t>>1))*100+128 
+
+
+
+
+clipping=128,
+r=(sin(t>>10)*123435435)+1,
+a=t/16,
+w=sin(a)+
+  sin(a*2)/(r%2)+
+  sin(a*3)/(r%3)+
+  sin(a*4)/(r%4)+
+  sin(a*5)/(r%5)+
+  sin(a*6)/(r%6)+
+  sin(a*7)/(r%7)+
+  sin(a*8)/(1+(r%8))+
+  sin(a*9)/(1+(r%9))+
+  sin(a*10)/(1+(r%10)),
+bytebeat = w*8+128,
+(bytebeat > (128+clipping) || bytebeat < (128-clipping))?
+((bytebeat > (128+clipping))?(127+clipping):(128-clipping))
+:bytebeat    //random harmonics, clipingRange is from 0 to 128 and should not cause distortion other than clipping r uses a basic rng.
+
+clipping=128,
+bytebeat=t*t%256+cos(t/10000)*128,
+   (bytebeat > (128+clipping) || bytebeat < (128-clipping))?
+   ((bytebeat > (128+clipping))?(127+clipping):(128-clipping))
+   :bytebeat   //auto clipper, clipping is a range. bytebeat can be anything. This prevents wraparound with bytebeats. For example, sin(t)*128214124 will not cause a screech sound, but a square wave. Note that formulas which increase without bound (ex: t, t\*t, t>>8&t, etc) will need a %256 attached to it.
+
+wobble=t/2000,
+pitch=(t/20.5),
+organ=sin(pitch+wobble)+
+  sin(pitch*2+wobble)/2+
+  sin(pitch*4+wobble)/4+
+  sin(pitch*8+wobble)/8+
+  sin(pitch*16+wobble)/16+
+  sin(pitch*32+wobble)/32+
+  sin(pitch*64+wobble)/64+
+  sin(pitch*128+wobble)/128+
+  sin(pitch*256+wobble)/256,
+organ*64+128   //an organ with vibrato/timbe alterations
+
+wobble=t/2000,
+pitch=(t/(5+(t>>12|t>>8&t>>13))),
+organ=sin(pitch+wobble)+
+  sin(pitch*2+wobble)/2+
+  sin(pitch*4+wobble)/4+
+  sin(pitch*8+wobble)/8+
+  sin(pitch*16+wobble)/16+
+  sin(pitch*32+wobble)/32+
+  sin(pitch*64+wobble)/64+
+  sin(pitch*128+wobble)/128+
+  sin(pitch*256+wobble)/256,
+organ*64+128  //organ song
+
+harmonicFreq = [1,2,3,4,5,6,7,8,9,10],
+harmonicAmp = [1,2,3,4,5,6,7,8,9,10],
+pitch = t/16,
+builder =
+ (sin((harmonicFreq[0])*pitch)/harmonicAmp[0])+
+ (sin((harmonicFreq[1])*pitch)/harmonicAmp[1])+
+ (sin((harmonicFreq[2])*pitch)/harmonicAmp[2])+
+ (sin((harmonicFreq[3])*pitch)/harmonicAmp[3])+
+ (sin((harmonicFreq[4])*pitch)/harmonicAmp[4])+
+ (sin((harmonicFreq[5])*pitch)/harmonicAmp[5])+
+ (sin((harmonicFreq[6])*pitch)/harmonicAmp[6])+
+ (sin((harmonicFreq[7])*pitch)/harmonicAmp[7])+
+ (sin((harmonicFreq[8])*pitch)/harmonicAmp[8])+
+ (sin((harmonicFreq[9])*pitch)/harmonicAmp[9]),
+builder*64+128    //automagic harmonic generator
+
+a=t%(1+floor(t/4)),b=t/4,((a>>4 & a>>8)*a)-((b>>4 & b>>8)*b)  //minus world, 8khz or 32khz recommended
