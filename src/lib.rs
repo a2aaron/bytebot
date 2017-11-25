@@ -5,11 +5,11 @@ use encode::Color;
 
 #[derive(Debug, PartialEq)]
 pub struct Code {
-    code: Vec<Cmd>,
+    cmds: Vec<Cmd>,
 }
 
 impl Code {
-    fn new(code: Vec<Cmd>) -> Result<Code,()> {
+    fn new(code: Vec<Cmd>) -> Result<Code, &'static str> {
         use self::Cmd::*;
 
         let mut stack_size = 0 as i32;
@@ -17,22 +17,22 @@ impl Code {
             stack_size += match *cmd {
                 Var | NumF(_) | NumI(_) => 1,
                 Fg(_) | Bg(_) | Khz(_) | Comment(_) => continue,
-                // These all pop 1 value off the stack and push 1 
+                // These all pop 1 value off the stack and push 1
                 // value back on, so the net effect is no stack change
                 Sin | Cos | Tan => 0,
                 // Arr(x) pops a value off the stack (called the index)
-                // then pops x more values off the stack. Finally, it 
+                // then pops x more values off the stack. Finally, it
                 // pushes one value back onto the stack based on the index
                 // Thus the net effect of Arr is to reduce the stack size by x.
                 Arr(x) => -(x as i32),
                 Cond => -2,
-                _ => -1
+                _ => -1,
             };
             if stack_size <= 0 {
-                return Err(())
+                return Err("Invalid bytebeat");
             }
         }
-        Ok(Code {code: code})
+        Ok(Code { cmds: code })
     }
 }
 
@@ -75,7 +75,7 @@ pub enum Cmd {
 }
 
 pub struct Program {
-    code: Vec<Cmd>,
+    code: Code,
     bg: Option<Color>,
     fg: Option<Color>,
     khz: Option<u8>,
@@ -95,10 +95,10 @@ impl Program {
     }
 }
 
-pub fn compile(cmds: Vec<Cmd>) -> Result<Program, ()> {
+pub fn compile(code: Code) -> Program {
     use Cmd::*;
     let (mut bg, mut fg, mut khz) = (None, None, None);
-    for cmd in &cmds {
+    for cmd in &code.cmds {
         match *cmd {
             Bg(col) => bg = Some(col),
             Fg(col) => fg = Some(col),
@@ -107,17 +107,17 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, ()> {
         }
     }
 
-    Ok(Program {
-        code: cmds,
+    Program {
+        code: code,
         bg,
         fg,
         khz,
-    })
+    }
 }
 
 impl std::fmt::Display for Program {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(fmt, "{}", format_beat(&self.code))
+        write!(fmt, "{}", format_beat(&self.code.cmds))
     }
 }
 
@@ -225,15 +225,15 @@ macro_rules! stack_op {
     ($stack:ident { }) => {};
     ($stack:ident { $var:ident : $t:ty $(, $rvar:ident : $rt:ty)* }) => {
         stack_op!($stack { $($rvar : $rt),* });
-        let $var: $t = $stack.pop().ok_or(())?.into();
+        let $var: $t = $stack.pop().unwrap().into();
     }
 }
 
-pub fn eval_beat<T: Into<Val>>(program: &Program, t: T) -> Result<Val, ()> {
+pub fn eval_beat<T: Into<Val>>(program: &Program, t: T) -> Val {
     use Cmd::*;
     let t = t.into();
     let mut stack: Vec<Val> = Vec::new();
-    for cmd in &program.code {
+    for cmd in &program.code.cmds {
         match *cmd {
             Var => stack_op!(stack { } => t),
             NumF(y) => stack_op!( stack { } => y),
@@ -293,13 +293,8 @@ pub fn eval_beat<T: Into<Val>>(program: &Program, t: T) -> Result<Val, ()> {
                 })
             }
             Arr(size) => {
-                let index: i64 = stack.pop().ok_or(())?.into();
-                // We need to pop `size` values, so our stack needs to be
-                // atleast size elements long. Note that split_off panics if we
-                // exceed the length of the vector, so we need this if guard.
-                if size > stack.len() {
-                    return Err(());
-                } else if size == 0 {
+                let index: i64 = stack.pop().unwrap().into();
+                if size == 0 {
                     stack.push(0.into());
                 } else {
                     // We want to split off from the end, so we must subtract here.
@@ -316,12 +311,12 @@ pub fn eval_beat<T: Into<Val>>(program: &Program, t: T) -> Result<Val, ()> {
             Fg(..) | Bg(..) | Khz(..) | Comment(..) => (),
         }
     }
-    stack.pop().ok_or(())
+    stack.pop().unwrap()
 }
 
-pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
+pub fn parse_beat(text: &str) -> Result<Code, &str> {
     use Cmd::*;
-    text.split_whitespace()
+    let cmds = text.split_whitespace()
         .map(|x| match x {
             "t" => Ok(Var),
             "+" => Ok(Add),
@@ -375,7 +370,11 @@ pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
                 }
             }
         })
-        .collect()
+        .collect();
+    match cmds {
+        Ok(cmds) => Code::new(cmds),
+        Err(x) => Err(x),
+    }
 }
 
 impl std::fmt::Display for Cmd {
@@ -462,7 +461,7 @@ mod tests {
         assert!(result.is_err());
 
         // t +
-        result = Code::new(vec![Var, Add]);        
+        result = Code::new(vec![Var, Add]);
         assert!(result.is_err());
 
         // t t ?
@@ -477,10 +476,14 @@ mod tests {
         result = Code::new(vec![Var, Arr(1)]);
         assert!(result.is_err());
 
+        // 1 2 3 [3
+        result = Code::new(vec![NumI(1), NumI(2), NumI(3), Arr(3)]);
+        assert!(result.is_err());
+
         // Test that one argument operations are still an error
         // if the stack is test_eval_empty_arr_is_err
         result = Code::new(vec![Sin]);
-        assert!(result.is_err());        
+        assert!(result.is_err());
 
         // Test that stack size should not dip below zero
         // t t t * * * t
@@ -489,7 +492,12 @@ mod tests {
 
         // These should always be valid even on an empty stack
         // !khz 8 !bg:000 !fg:000 #Hello
-        result = Code::new(vec![Khz(8), Bg(Color([0, 0, 0])), Fg(Color([0, 0, 0])), Comment("Hello".to_string())]);
+        result = Code::new(vec![
+            Khz(8),
+            Bg(Color([0, 0, 0])),
+            Fg(Color([0, 0, 0])),
+            Comment("Hello".to_string()),
+        ]);
         assert!(result.is_ok());
     }
 
@@ -515,11 +523,12 @@ mod tests {
                 fn test_eval() {
                     use Cmd::*;
                     let cmd = vec![$($cmd),*];
-                    let cmd = compile(cmd).unwrap();
+                    let cmd = Code::new(cmd).unwrap();
+                    let cmd = compile(cmd);
                     $(
                         assert_eq!(
                             eval_beat(&cmd, $src),
-                            Ok($res.into()),
+                            $res.into(),
                             "t = {}, cmd: {}",
                             $src,
                             $text
@@ -538,6 +547,7 @@ mod tests {
                 fn test_parse() {
                     use Cmd::*;
                     let cmd = vec![$($cmd),*];
+                    let cmd = Code::new(cmd).unwrap();
                     assert_eq!(parse_beat($text), Ok(cmd));
                 }
             }
@@ -855,14 +865,16 @@ mod tests {
     #[test]
     fn test_metadata() {
         use Cmd::*;
-        let prog = compile(vec![
+        let code = vec![
             Fg(Color([0, 0, 0])),
             Bg(Color([0, 0, 0])),
             Khz(8),
             Khz(11),
             Fg(Color([1, 0, 0])),
             Bg(Color([0, 1, 1])),
-        ]).unwrap();
+        ];
+        let code = Code::new(code).unwrap();
+        let prog = compile(code);
         assert_eq!(prog.hz(), Some(11_000));
         assert_eq!(prog.fg(), Some(Color([1, 0, 0])));
         assert_eq!(prog.bg(), Some(Color([0, 1, 1])));
@@ -959,22 +971,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_arr_stack_too_small() {
-        use Cmd::*;
-        let cmd = compile(vec![NumI(1), NumI(2), NumI(3), Arr(3)]).unwrap();
-        assert_eq!(eval_beat(&cmd, 0.0), Err(()), "t = {}, cmd: {}", 0.0, &cmd);
-    }
-
-    #[test]
-    fn test_eval_empty_arr_is_err() {
-        use Cmd::*;
-        let cmd = compile(vec![Arr(0)]).unwrap();
-        assert_eq!(eval_beat(&cmd, 0.0), Err(()), "t = {}, cmd: {}", 0.0, cmd);
-        assert_eq!(eval_beat(&cmd, 1.0), Err(()), "t = {}, cmd: {}", 1.0, cmd);
-        assert_eq!(eval_beat(&cmd, 2.0), Err(()), "t = {}, cmd: {}", 2.0, cmd);
-    }
-
     test_beat! {
         name: example1,
         text: "t 1 >> t | tan 128 +",
@@ -1058,8 +1054,9 @@ mod tests {
         // The typed evaluator ensures that we don't make as many unnecessary
         // conversions, and so we keep more precision.
         use Cmd::*;
-        let code = compile(vec![Var, Var, Mul]).unwrap();
-        let res: u8 = eval_beat(&code, 1_073_741_825.0).unwrap().into();
+        let code = Code::new(vec![Var, Var, Mul]).unwrap();
+        let code = compile(code);
+        let res: u8 = eval_beat(&code, 1_073_741_825.0).into();
         assert_eq!(res, (1_073_741_825i64.wrapping_mul(1_073_741_825)) as u8);
     }
 }

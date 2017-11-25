@@ -51,7 +51,7 @@ fn generate_beat() -> Program {
     let mut buf = String::new();
     std::io::stdin().read_to_string(&mut buf).unwrap();
     let cmds = bytebeat::parse_beat(&buf).unwrap();
-    bytebeat::compile(cmds).unwrap()
+    bytebeat::compile(cmds)
 }
 
 fn encode_video(code: &Program) -> io::Result<Vec<u8>> {
