@@ -74,40 +74,34 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, CompileError> {
         }
     }
     // Validate the bytebeat by checking that the stack does not get popped when empty
-    let cmds = {
-        let mut stack_size = 0 as i32;
-        for (i, cmd) in cmds.iter().enumerate() {
-            stack_size += match *cmd {
-                Var | NumF(_) | NumI(_) => 1,
-                Fg(_) | Bg(_) | Khz(_) | Comment(_) => continue,
-                // These all pop 1 value off the stack and push 1
-                // value back on, so the net effect is no stack change
-                Sin | Cos | Tan => 0,
-                // Arr(x) pops a value off the stack (called the index)
-                // then pops x more values off the stack. Finally, it
-                // pushes one value back onto the stack based on the index
-                // Thus the net effect of Arr is to reduce the stack size by x.
-                Arr(x) => -(x as i32),
-                Cond => -2,
-                // Split these into multiple branches to make rustfmt stop complaining
-                Add | Sub | Mul | Div | Mod => -1,
-                Shl | Shr | And | Orr | Xor => -1,
-                Pow | AddF | SubF | MulF | DivF | ModF => -1,
-                Lt | Gt | Leq | Geq | Eq | Neq => -1,
-            };
-            if stack_size <= 0 {
-                return Err(CompileError {
-                    index: i,
-                    stack_size,
-                });
-            }
+    let mut stack_size = 0 as i32;
+    for (i, cmd) in cmds.iter().enumerate() {
+        stack_size += match *cmd {
+            Var | NumF(_) | NumI(_) => 1,
+            Fg(_) | Bg(_) | Khz(_) | Comment(_) => continue,
+            // These all pop 1 value off the stack and push 1
+            // value back on, so the net effect is no stack change
+            Sin | Cos | Tan => 0,
+            // Arr(x) pops a value off the stack (called the index)
+            // then pops x more values off the stack. Finally, it
+            // pushes one value back onto the stack based on the index
+            // Thus the net effect of Arr is to reduce the stack size by x.
+            Arr(x) => -(x as i32),
+            Cond => -2,
+            // Split these into multiple branches to make rustfmt stop complaining
+            Add | Sub | Mul | Div | Mod => -1,
+            Shl | Shr | And | Orr | Xor => -1,
+            Pow | AddF | SubF | MulF | DivF | ModF => -1,
+            Lt | Gt | Leq | Geq | Eq | Neq => -1,
+        };
+        if stack_size <= 0 {
+            return Err(CompileError {
+                index: i,
+                stack_size,
+            });
         }
-        Ok(cmds)
-    };
-    match cmds {
-        Ok(cmds) => Ok(Program { cmds, bg, fg, khz }),
-        Err(str) => Err(str),
     }
+    Ok(Program { cmds, bg, fg, khz })
 }
 
 impl std::fmt::Display for Program {
@@ -509,7 +503,7 @@ mod tests {
     fn test_comments_ok() {
         use Cmd::*;
         // These should always be valid even on an empty stack
-        // !khz 8 !bg:000 !fg:000 #Hello
+        // !khz:8 !bg:000 !fg:000 #Hello
         let result = compile(vec![
             Khz(8),
             Bg(Color([0, 0, 0])),
