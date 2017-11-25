@@ -472,42 +472,42 @@ mod tests {
         }
     }
 
-    test_invalid!{
+    test_invalid! {
         name: add_empty,
         code: [Add],
     }
 
-    test_invalid!{
+    test_invalid! {
         name: add_small_stack,
         code: [Var, Add],
     }
 
-    test_invalid!{
+    test_invalid! {
         name: cond_small_stack,
         code: [Var, Var, Cond],
     }
 
-    test_invalid!{
+    test_invalid! {
         name: empty_arr_is_err,
         code: [Arr(0)],
     }
 
-    test_invalid!{
+    test_invalid! {
         name: arr_stack_too_small,
         code: [Var, Arr(1)],
     }
 
-    test_invalid!{
+    test_invalid! {
         name: arr_stack_too_small2,
         code: [NumI(1), NumI(2), NumI(3), Arr(3)],
     }
 
-    test_invalid!{
+    test_invalid! {
         name: sin_empty,
         code: [Sin],
     }
 
-    test_invalid!{
+    test_invalid! {
         name: should_not_dip_below_zero,
         code: [Var, Var, Var, Add, Add, Add, Var],
     }
@@ -521,7 +521,7 @@ mod tests {
             Khz(8),
             Bg(Color([0, 0, 0])),
             Fg(Color([0, 0, 0])),
-            Comment("Hello".to_string()),
+            Comment("Hello".into()),
         ]);
         assert!(result.is_ok());
     }
@@ -537,7 +537,7 @@ mod tests {
                 use super::*;
 
                 #[test]
-                fn test_ok() {
+                fn test_compile() {
                     use Cmd::*;
                     let cmd = vec![$($cmd),*];
                     let result = Code::new(cmd);
