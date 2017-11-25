@@ -284,20 +284,17 @@ pub fn eval_beat<T: Into<Val>>(program: &Program, t: T) -> Val {
                     if cond { a } else { b }
                 })
             }
+            Arr(0) => stack.push(0.into()),
             Arr(size) => {
                 let index: i64 = stack.pop().unwrap().into();
-                if size == 0 {
-                    stack.push(0.into());
-                } else {
-                    // We want to split off from the end, so we must subtract here.
-                    let split_index = stack.len() - size;
-                    let mut vec = stack.split_off(split_index);
-                    let size = size as i64;
-                    // Calculate the positive modulus (% gives remainder, which
-                    // is slightly different than mod for negative values)
-                    let index = ((index % size) + size) % size;
-                    stack.push(vec[index as usize]);
-                }
+                // We want to split off from the end, so we must subtract here.
+                let split_index = stack.len() - size;
+                let mut vec = stack.split_off(split_index);
+                let size = size as i64;
+                // Calculate the positive modulus (% gives remainder, which
+                // is slightly different than mod for negative values)
+                let index = ((index % size) + size) % size;
+                stack.push(vec[index as usize]);
             }
             // These have no runtime effect
             Fg(..) | Bg(..) | Khz(..) | Comment(..) => (),
