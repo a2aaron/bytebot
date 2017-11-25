@@ -4,43 +4,6 @@ use encode::Color;
 
 
 #[derive(Debug, PartialEq)]
-struct Code {
-    cmds: Vec<Cmd>,
-}
-
-impl Code {
-    fn new(code: Vec<Cmd>) -> Result<Code, &'static str> {
-        use self::Cmd::*;
-
-        let mut stack_size = 0 as i32;
-        for cmd in code.iter() {
-            stack_size += match *cmd {
-                Var | NumF(_) | NumI(_) => 1,
-                Fg(_) | Bg(_) | Khz(_) | Comment(_) => continue,
-                // These all pop 1 value off the stack and push 1
-                // value back on, so the net effect is no stack change
-                Sin | Cos | Tan => 0,
-                // Arr(x) pops a value off the stack (called the index)
-                // then pops x more values off the stack. Finally, it
-                // pushes one value back onto the stack based on the index
-                // Thus the net effect of Arr is to reduce the stack size by x.
-                Arr(x) => -(x as i32),
-                Cond => -2,
-                // Split these into multiple branches to make rustfmt stop complaining
-                Add | Sub | Mul | Div | Mod => -1,
-                Shl | Shr | And | Orr | Xor => -1,
-                Pow | AddF | SubF | MulF | DivF | ModF => -1,
-                Lt | Gt | Leq | Geq | Eq | Neq => -1,
-            };
-            if stack_size <= 0 {
-                return Err("Invalid bytebeat");
-            }
-        }
-        Ok(Code { cmds: code })
-    }
-}
-
-#[derive(Debug, PartialEq)]
 pub enum Cmd {
     Var,
     NumF(f64),
@@ -79,7 +42,7 @@ pub enum Cmd {
 }
 
 pub struct Program {
-    code: Code,
+    cmds: Vec<Cmd>,
     bg: Option<Color>,
     fg: Option<Color>,
     khz: Option<u8>,
@@ -110,20 +73,43 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, &'static str> {
             _ => (),
         }
     }
-    match Code::new(cmds) {
-        Ok(code) => Ok(Program {
-            code: code,
-            bg,
-            fg,
-            khz,
-        }),
+    // Validate the bytebeat by checking that the stack does not get popped when empty
+    let cmds = {
+        let mut stack_size = 0 as i32;
+        for cmd in cmds.iter() {
+            stack_size += match *cmd {
+                Var | NumF(_) | NumI(_) => 1,
+                Fg(_) | Bg(_) | Khz(_) | Comment(_) => continue,
+                // These all pop 1 value off the stack and push 1
+                // value back on, so the net effect is no stack change
+                Sin | Cos | Tan => 0,
+                // Arr(x) pops a value off the stack (called the index)
+                // then pops x more values off the stack. Finally, it
+                // pushes one value back onto the stack based on the index
+                // Thus the net effect of Arr is to reduce the stack size by x.
+                Arr(x) => -(x as i32),
+                Cond => -2,
+                // Split these into multiple branches to make rustfmt stop complaining
+                Add | Sub | Mul | Div | Mod => -1,
+                Shl | Shr | And | Orr | Xor => -1,
+                Pow | AddF | SubF | MulF | DivF | ModF => -1,
+                Lt | Gt | Leq | Geq | Eq | Neq => -1,
+            };
+            if stack_size <= 0 {
+                return Err("Invalid bytebeat");
+            }
+        }
+        Ok(cmds)
+    };
+    match cmds {
+        Ok(cmds) => Ok(Program { cmds, bg, fg, khz }),
         Err(str) => Err(str),
     }
 }
 
 impl std::fmt::Display for Program {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(fmt, "{}", format_beat(&self.code.cmds))
+        write!(fmt, "{}", format_beat(&self.cmds))
     }
 }
 
@@ -239,7 +225,7 @@ pub fn eval_beat<T: Into<Val>>(program: &Program, t: T) -> Val {
     use Cmd::*;
     let t = t.into();
     let mut stack: Vec<Val> = Vec::new();
-    for cmd in &program.code.cmds {
+    for cmd in &program.cmds {
         match *cmd {
             Var => stack_op!(stack { } => t),
             NumF(y) => stack_op!( stack { } => y),
@@ -462,15 +448,6 @@ mod tests {
         ) => {
             mod $name {
                 use super::*;
-
-                #[test]
-                fn test_err_code() {
-                    use Cmd::*;
-                    let cmd = vec![$($cmd),*];
-                    let result = Code::new(cmd);
-                    assert!(result.is_err());
-                }
-
                 #[test]
                 fn test_err_compile() {
                     use Cmd::*;
@@ -527,7 +504,7 @@ mod tests {
         use Cmd::*;
         // These should always be valid even on an empty stack
         // !khz 8 !bg:000 !fg:000 #Hello
-        let result = Code::new(vec![
+        let result = compile(vec![
             Khz(8),
             Bg(Color([0, 0, 0])),
             Fg(Color([0, 0, 0])),
