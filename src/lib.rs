@@ -74,7 +74,7 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, CompileError> {
         }
     }
     // Validate the bytebeat by checking that the stack does not get popped when empty
-    let mut stack_size = 0 as i32;
+    let mut stack_size = 0 as isize;
     for (i, cmd) in cmds.iter().enumerate() {
         stack_size += match *cmd {
             Var | NumF(_) | NumI(_) => 1,
@@ -86,7 +86,7 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, CompileError> {
             // then pops x more values off the stack. Finally, it
             // pushes one value back onto the stack based on the index
             // Thus the net effect of Arr is to reduce the stack size by x.
-            Arr(x) => -(x as i32),
+            Arr(x) => -(x as isize),
             Cond => -2,
             // Split these into multiple branches to make rustfmt stop complaining
             Add | Sub | Mul | Div | Mod => -1,
@@ -113,7 +113,8 @@ impl std::fmt::Display for Program {
 #[derive(Debug)]
 pub struct CompileError {
     index: usize,
-    stack_size: i32,
+    stack_size: isize,
+}
 
 impl<'a> std::fmt::Display for CompileError {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
