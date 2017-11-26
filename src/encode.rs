@@ -35,6 +35,7 @@ pub struct EncoderConfig {
     width: usize,
     height: usize,
     fps: usize,
+    out_dim: Option<(usize, usize)>,
     audio_rate: Option<usize>,
     audio_path: Option<PathBuf>,
     video_path: Option<PathBuf>,
@@ -46,6 +47,7 @@ impl EncoderConfig {
             width,
             height,
             fps: 30,
+            out_dim: None,
             audio_rate: None,
             audio_path: None,
             video_path: None,
@@ -59,6 +61,13 @@ impl EncoderConfig {
     pub fn audio_rate(self, rate: usize) -> EncoderConfig {
         EncoderConfig {
             audio_rate: Some(rate),
+            ..self
+        }
+    }
+
+    pub fn output_dimensions(self, width: usize, height: usize) -> EncoderConfig {
+        EncoderConfig {
+            out_dim: Some((width, height)),
             ..self
         }
     }
@@ -89,11 +98,15 @@ impl EncoderConfig {
             |_| "could not create video file",
         )?);
 
+        let (out_width, out_height) = self.out_dim.unwrap_or((self.width, self.height));
+
         Ok(Encoder {
             width: self.width,
             height: self.height,
             fps: self.fps,
             audio_rate: self.audio_rate.ok_or("audio rate not set")?,
+            out_width,
+            out_height,
             audio_path,
             video_path,
             audio_file,
@@ -106,6 +119,8 @@ pub struct Encoder {
     width: usize,
     height: usize,
     fps: usize,
+    out_width: usize,
+    out_height: usize,
     audio_rate: usize,
     audio_path: PathBuf,
     video_path: PathBuf,
@@ -125,7 +140,7 @@ impl Encoder {
     pub fn start_encode(&mut self, out: &str) -> Result<process::Child, io::Error> {
         let fps = format!("{}", self.fps);
         let hz = format!("{}", self.audio_rate);
-        let size = format!("{}x{}", self.width, self.height);
+        let size = format!("{}x{}", self.out_width, self.out_height);
 
         // Flush the file buffers so FFmpeg can see them all
         self.audio_file.flush()?;
@@ -137,7 +152,12 @@ impl Encoder {
             .arg(&self.video_path)
             .args(&["-f", "u8", "-ar", &hz, "-ac", "1", "-i"])
             .arg(&self.audio_path)
-            .args(&["-pix_fmt", "yuv420p", "-y", "-s", &size, out])
+            .args(&["-pix_fmt", "yuv420p", "-y", "-movflags", "+faststart"])
+            .args(&["-c:a", "aac", "-strict", "-2", "-b:a", "96k", "-ar", "16k"])
+            .args(&["-c:v", "libx264", "-b:v", "768K"])
+            .args(&["-s", &size])
+        // "-sws_flags", "neighbor"
+            .arg(out)
             .spawn()
     }
 

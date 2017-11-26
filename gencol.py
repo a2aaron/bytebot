@@ -14,8 +14,8 @@ def gencol():
 
 for line in sys.stdin.readlines():
     a, b = gencol()
-    print('!fg:{} !bg:{} {} #bbcurated'.format(
-        fmtcol(a),
-        fmtcol(b),
-        line.strip(),
+    print('{code}\n!fg:{fg} !bg:{bg} #bbcurated'.format(
+        code=line.strip(),
+        fg=fmtcol(a),
+        bg=fmtcol(b),
     ))

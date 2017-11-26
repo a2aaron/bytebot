@@ -22,8 +22,7 @@ fn main() {
     let handle = core.handle();
 
     println!("Generating beat...");
-    let code = generate_beat();
-    let text = format!("{}", code);
+    let (code, text) = generate_beat();
     println!("Generated!");
     println!("Using formula: {}", text);
 
@@ -46,12 +45,12 @@ fn main() {
     println!("Posted!");
 }
 
-fn generate_beat() -> Program {
+fn generate_beat() -> (Program, String) {
     println!("Reading a beat from stdin:");
     let mut buf = String::new();
     std::io::stdin().read_to_string(&mut buf).unwrap();
     let cmds = bytebeat::parse_beat(&buf).unwrap();
-    bytebeat::compile(cmds).unwrap()
+    (bytebeat::compile(cmds).unwrap(), buf)
 }
 
 fn encode_video(code: &Program) -> io::Result<Vec<u8>> {

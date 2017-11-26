@@ -4,3 +4,4 @@ Cargo.lock
 *.mp4
 .env
 .post-queue
+.post-queuee
