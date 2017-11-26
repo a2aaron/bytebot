@@ -62,7 +62,7 @@ impl Program {
     }
 }
 
-pub fn compile(cmds: Vec<Cmd>) -> Result<Program, (Vec<Cmd>, CompileError)> {
+pub fn compile(cmds: Vec<Cmd>) -> Result<Program, CompileError> {
     use Cmd::*;
     let (mut bg, mut fg, mut khz) = (None, None, None);
     for cmd in &cmds {
@@ -96,14 +96,11 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, (Vec<Cmd>, CompileError)> {
         };
         if stack_size <= 0 {
             // Hand back the Vec<Cmd> since we probably shouldn't drop it.
-            return Err((
-                cmds.clone(),
-                CompileError {
-                    instruction: cmd.clone(),
-                    index: i,
-                    stack_size,
-                },
-            ));
+            return Err(CompileError {
+                cmds: cmds.clone(),
+                index: i,
+                stack_size,
+            });
         }
     }
     Ok(Program { cmds, bg, fg, khz })
@@ -117,7 +114,7 @@ impl std::fmt::Display for Program {
 
 #[derive(Debug)]
 pub struct CompileError {
-    instruction: Cmd,
+    cmds: Vec<Cmd>,
     index: usize,
     stack_size: isize,
 }
@@ -127,7 +124,7 @@ impl<'a> std::fmt::Display for CompileError {
         write!(
             fmt,
             "Attempt to pop beyond stack size. instruction: {} index: {}, size of stack {}",
-            self.instruction,
+            self.cmds[self.index],
             self.index,
             self.stack_size
         )

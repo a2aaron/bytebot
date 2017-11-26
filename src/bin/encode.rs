@@ -15,7 +15,7 @@ fn main() {
                 match bytebeat::compile(code) {
                     Ok(code) => code,
                     Err(compile_error) => {
-                        eprintln!("Error compiling bytebeat: {}", compile_error);
+                        eprintln!("{}", compile_error);
                         std::process::exit(1);
                     }
                 }
