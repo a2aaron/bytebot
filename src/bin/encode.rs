@@ -14,14 +14,14 @@ fn main() {
             Ok(code) => {
                 match bytebeat::compile(code) {
                     Ok(code) => code,
-                    Err(_) => {
-                        eprintln!("Error compiling bytebeat");
+                    Err(compile_error) => {
+                        eprintln!("{}", compile_error);
                         std::process::exit(1);
                     }
                 }
             }
-            Err(_) => {
-                eprintln!("Error parsing bytebeat");
+            Err(parse_error) => {
+                eprintln!("Error parsing bytebeat: {}", parse_error);
                 std::process::exit(1);
             }
         }

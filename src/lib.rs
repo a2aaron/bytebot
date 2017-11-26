@@ -3,7 +3,7 @@ pub mod encode;
 use encode::Color;
 
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Cmd {
     Var,
     NumF(f64),
@@ -42,7 +42,7 @@ pub enum Cmd {
 }
 
 pub struct Program {
-    code: Vec<Cmd>,
+    cmds: Vec<Cmd>,
     bg: Option<Color>,
     fg: Option<Color>,
     khz: Option<u8>,
@@ -62,7 +62,7 @@ impl Program {
     }
 }
 
-pub fn compile(cmds: Vec<Cmd>) -> Result<Program, ()> {
+pub fn compile(cmds: Vec<Cmd>) -> Result<Program, CompileError> {
     use Cmd::*;
     let (mut bg, mut fg, mut khz) = (None, None, None);
     for cmd in &cmds {
@@ -73,18 +73,65 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, ()> {
             _ => (),
         }
     }
-
-    Ok(Program {
-        code: cmds,
-        bg,
-        fg,
-        khz,
-    })
+    // Validate the bytebeat by checking that the stack does not get popped when empty
+    let mut stack_size = 0 as isize;
+    let mut err_index = None;
+    for (index, cmd) in cmds.iter().enumerate() {
+        stack_size += match *cmd {
+            Var | NumF(_) | NumI(_) => 1,
+            Fg(_) | Bg(_) | Khz(_) | Comment(_) => continue,
+            // These all pop 1 value off the stack and push 1
+            // value back on, so the net effect is no stack change
+            Sin | Cos | Tan => 0,
+            // Arr(x) pops a value off the stack (called the index)
+            // then pops x more values off the stack. Finally, it
+            // pushes one value back onto the stack based on the index
+            // Thus the net effect of Arr is to reduce the stack size by x.
+            Arr(x) => -(x as isize),
+            Cond => -2,
+            // Split these into multiple branches to make rustfmt stop complaining
+            Add | Sub | Mul | Div | Mod => -1,
+            Shl | Shr | And | Orr | Xor => -1,
+            Pow | AddF | SubF | MulF | DivF | ModF => -1,
+            Lt | Gt | Leq | Geq | Eq | Neq => -1,
+        };
+        if stack_size <= 0 {
+            err_index = Some(index);
+            break;
+        }
+    }
+    match err_index {
+        None => Ok(Program { cmds, bg, fg, khz }),
+        Some(index) => Err(CompileError {
+            cmds,
+            index,
+            stack_size,
+        }),
+    }
 }
 
 impl std::fmt::Display for Program {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(fmt, "{}", format_beat(&self.code))
+        write!(fmt, "{}", format_beat(&self.cmds))
+    }
+}
+
+#[derive(Debug)]
+pub struct CompileError {
+    cmds: Vec<Cmd>,
+    index: usize,
+    stack_size: isize,
+}
+
+impl<'a> std::fmt::Display for CompileError {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            fmt,
+            "Attempt to pop beyond stack size. instruction: {} index: {}, size of stack {}",
+            self.cmds[self.index],
+            self.index,
+            self.stack_size
+        )
     }
 }
 
@@ -192,15 +239,15 @@ macro_rules! stack_op {
     ($stack:ident { }) => {};
     ($stack:ident { $var:ident : $t:ty $(, $rvar:ident : $rt:ty)* }) => {
         stack_op!($stack { $($rvar : $rt),* });
-        let $var: $t = $stack.pop().ok_or(())?.into();
+        let $var: $t = $stack.pop().unwrap().into();
     }
 }
 
-pub fn eval_beat<T: Into<Val>>(program: &Program, t: T) -> Result<Val, ()> {
+pub fn eval_beat<T: Into<Val>>(program: &Program, t: T) -> Val {
     use Cmd::*;
     let t = t.into();
     let mut stack: Vec<Val> = Vec::new();
-    for cmd in &program.code {
+    for cmd in &program.cmds {
         match *cmd {
             Var => stack_op!(stack { } => t),
             NumF(y) => stack_op!( stack { } => y),
@@ -259,37 +306,31 @@ pub fn eval_beat<T: Into<Val>>(program: &Program, t: T) -> Result<Val, ()> {
                     if cond { a } else { b }
                 })
             }
+            Arr(0) => stack.push(0.into()),
             Arr(size) => {
-                let index: i64 = stack.pop().ok_or(())?.into();
-                // We need to pop `size` values, so our stack needs to be
-                // atleast size elements long. Note that split_off panics if we
-                // exceed the length of the vector, so we need this if guard.
-                if size > stack.len() {
-                    return Err(());
-                } else if size == 0 {
-                    stack.push(0.into());
-                } else {
-                    // We want to split off from the end, so we must subtract here.
-                    let split_index = stack.len() - size;
-                    let mut vec = stack.split_off(split_index);
-                    let size = size as i64;
-                    // Calculate the positive modulus (% gives remainder, which
-                    // is slightly different than mod for negative values)
-                    let index = ((index % size) + size) % size;
-                    stack.push(vec[index as usize]);
-                }
+                let index: i64 = stack.pop().unwrap().into();
+                // We want to split off from the end, so we must subtract here.
+                let split_index = stack.len() - size;
+                let vec = stack.split_off(split_index);
+                let size = size as i64;
+                // Calculate the positive modulus (% gives remainder, which
+                // is slightly different than mod for negative values)
+                let index = ((index % size) + size) % size;
+                stack.push(vec[index as usize]);
             }
             // These have no runtime effect
             Fg(..) | Bg(..) | Khz(..) | Comment(..) => (),
         }
     }
-    stack.pop().ok_or(())
+    stack.pop().unwrap()
 }
 
-pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
+pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, ParseError> {
     use Cmd::*;
+    use ParseError::*;
     text.split_whitespace()
-        .map(|x| match x {
+        .enumerate()
+        .map(|(i, x)| match x {
             "t" => Ok(Var),
             "+" => Ok(Add),
             "-" => Ok(Sub),
@@ -317,32 +358,54 @@ pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
             "==" => Ok(Eq),
             "!=" => Ok(Neq),
             "?" => Ok(Cond),
-            x if x.starts_with('[') => x[1..].parse().map(Arr).map_err(|_| x),
+            x if x.starts_with('[') => x[1..].parse().map(Arr).map_err(|_| BadArr(x, i)),
             x if x.starts_with("!fg:") => {
-                let raw = u16::from_str_radix(&x[4..], 16).map_err(|_| x)?;
+                let raw = u16::from_str_radix(&x[4..], 16).map_err(|_| BadFG(x, i))?;
                 let r = (raw >> 8 & 0xF) as u8;
                 let g = (raw >> 4 & 0xF) as u8;
                 let b = (raw & 0xF) as u8;
                 Ok(Fg(Color([r << 4 | r, g << 4 | g, b << 4 | b])))
             }
             x if x.starts_with("!bg:") => {
-                let raw = u16::from_str_radix(&x[4..], 16).map_err(|_| x)?;
+                let raw = u16::from_str_radix(&x[4..], 16).map_err(|_| BadBG(x, i))?;
                 let r = (raw >> 8 & 0xF) as u8;
                 let g = (raw >> 4 & 0xF) as u8;
                 let b = (raw & 0xF) as u8;
                 Ok(Bg(Color([r << 4 | r, g << 4 | g, b << 4 | b])))
             }
-            x if x.starts_with("!khz:") => x[5..].parse().map(Khz).map_err(|_| x),
+            x if x.starts_with("!khz:") => x[5..].parse().map(Khz).map_err(|_| BadKhz(x, i)),
             x if x.starts_with('#') => Ok(Comment(x[1..].into())),
             x => {
                 if x.contains('.') {
-                    x.parse().map(NumF).map_err(|_| x)
+                    x.parse().map(NumF).map_err(|_| UnknownToken(x, i))
                 } else {
-                    x.parse().map(NumI).map_err(|_| x)
+                    x.parse().map(NumI).map_err(|_| UnknownToken(x, i))
                 }
             }
         })
         .collect()
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ParseError<'a> {
+    BadArr(&'a str, usize),
+    BadFG(&'a str, usize),
+    BadBG(&'a str, usize),
+    BadKhz(&'a str, usize),
+    UnknownToken(&'a str, usize),
+}
+
+impl<'a> std::fmt::Display for ParseError<'a> {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        use ParseError::*;
+        match *self {
+            BadArr(token, index) => write!(fmt, "Bad Array op: {}, index: {}", token, index),
+            BadFG(token, index) => write!(fmt, "Bad Foreground Color: {}, index: {}", token, index),
+            BadBG(token, index) => write!(fmt, "Bad Background Color: {}, index: {}", token, index),
+            BadKhz(token, index) => write!(fmt, "Bad Sample Rate: {}, index: {}", token, index),
+            UnknownToken(token, index) => write!(fmt, "Unknown Token: {}, index: {}", token, index),
+        }
+    }
 }
 
 impl std::fmt::Display for Cmd {
@@ -421,6 +484,95 @@ pub fn format_beat(cmds: &[Cmd]) -> String {
 mod tests {
     use super::*;
 
+    macro_rules! test_invalid {
+        (
+            name: $name:ident,
+            code: [$($cmd:expr),* $(,)*],
+            index: $index:expr,
+        ) => {
+            mod $name {
+                use super::*;
+                #[test]
+                fn test_err_compile() {
+                    use Cmd::*;
+                    let cmd = vec![$($cmd),*];
+                    let result = compile(cmd);
+                    assert!(result.is_err());
+                }
+
+                #[test]
+                fn test_err_index() {
+                    use Cmd::*;
+                    let cmd = vec![$($cmd),*];
+                    let result = compile(cmd).err().unwrap();
+                    assert_eq!(result.index, $index);
+                }
+            }
+        }
+    }
+
+    test_invalid! {
+        name: add_empty,
+        code: [Add],
+        index: 0,
+    }
+
+    test_invalid! {
+        name: add_small_stack,
+        code: [Var, Add],
+        index: 1,
+    }
+
+    test_invalid! {
+        name: cond_small_stack,
+        code: [Var, Var, Cond],
+        index: 2,
+    }
+
+    test_invalid! {
+        name: empty_arr_is_err,
+        code: [Arr(0)],
+        index: 0,
+    }
+
+    test_invalid! {
+        name: arr_stack_too_small,
+        code: [Var, Arr(1)],
+        index: 1,
+    }
+
+    test_invalid! {
+        name: arr_stack_too_small2,
+        code: [NumI(1), NumI(2), NumI(3), Arr(3)],
+        index: 3,
+    }
+
+    test_invalid! {
+        name: sin_empty,
+        code: [Sin],
+        index: 0,
+    }
+
+    test_invalid! {
+        name: should_not_dip_below_zero,
+        code: [Var, Var, Var, Add, Add, Add, Var],
+        index: 5,
+    }
+
+    #[test]
+    fn test_comments_ok() {
+        use Cmd::*;
+        // These should always be valid even on an empty stack
+        // !khz:8 !bg:000 !fg:000 #Hello
+        let result = compile(vec![
+            Khz(8),
+            Bg(Color([0, 0, 0])),
+            Fg(Color([0, 0, 0])),
+            Comment("Hello".into()),
+        ]);
+        assert!(result.is_ok());
+    }
+
     macro_rules! test_beat {
         (
             name: $name:ident,
@@ -432,6 +584,14 @@ mod tests {
                 use super::*;
 
                 #[test]
+                fn test_compile() {
+                    use Cmd::*;
+                    let cmd = vec![$($cmd),*];
+                    let result = compile(cmd);
+                    assert!(result.is_ok());
+                }
+
+                #[test]
                 fn test_eval() {
                     use Cmd::*;
                     let cmd = vec![$($cmd),*];
@@ -439,7 +599,7 @@ mod tests {
                     $(
                         assert_eq!(
                             eval_beat(&cmd, $src),
-                            Ok($res.into()),
+                            $res.into(),
                             "t = {}, cmd: {}",
                             $src,
                             $text
@@ -775,14 +935,15 @@ mod tests {
     #[test]
     fn test_metadata() {
         use Cmd::*;
-        let prog = compile(vec![
+        let code = vec![
             Fg(Color([0, 0, 0])),
             Bg(Color([0, 0, 0])),
             Khz(8),
             Khz(11),
             Fg(Color([1, 0, 0])),
             Bg(Color([0, 1, 1])),
-        ]).unwrap();
+        ];
+        let prog = compile(code).unwrap();
         assert_eq!(prog.hz(), Some(11_000));
         assert_eq!(prog.fg(), Some(Color([1, 0, 0])));
         assert_eq!(prog.bg(), Some(Color([0, 1, 1])));
@@ -879,22 +1040,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_arr_stack_too_small() {
-        use Cmd::*;
-        let cmd = compile(vec![NumI(1), NumI(2), NumI(3), Arr(3)]).unwrap();
-        assert_eq!(eval_beat(&cmd, 0.0), Err(()), "t = {}, cmd: {}", 0.0, &cmd);
-    }
-
-    #[test]
-    fn test_eval_empty_arr_is_err() {
-        use Cmd::*;
-        let cmd = compile(vec![Arr(0)]).unwrap();
-        assert_eq!(eval_beat(&cmd, 0.0), Err(()), "t = {}, cmd: {}", 0.0, cmd);
-        assert_eq!(eval_beat(&cmd, 1.0), Err(()), "t = {}, cmd: {}", 1.0, cmd);
-        assert_eq!(eval_beat(&cmd, 2.0), Err(()), "t = {}, cmd: {}", 2.0, cmd);
-    }
-
     test_beat! {
         name: example1,
         text: "t 1 >> t | tan 128 +",
@@ -978,8 +1123,9 @@ mod tests {
         // The typed evaluator ensures that we don't make as many unnecessary
         // conversions, and so we keep more precision.
         use Cmd::*;
-        let code = compile(vec![Var, Var, Mul]).unwrap();
-        let res: u8 = eval_beat(&code, 1_073_741_825.0).unwrap().into();
+        let code = vec![Var, Var, Mul];
+        let code = compile(code).unwrap();
+        let res: u8 = eval_beat(&code, 1_073_741_825.0).into();
         assert_eq!(res, (1_073_741_825i64.wrapping_mul(1_073_741_825)) as u8);
     }
 }
