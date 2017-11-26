@@ -3,7 +3,7 @@ pub mod encode;
 use encode::Color;
 
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Cmd {
     Var,
     NumF(f64),
@@ -62,7 +62,7 @@ impl Program {
     }
 }
 
-pub fn compile(cmds: Vec<Cmd>) -> Result<Program, CompileError> {
+pub fn compile(cmds: Vec<Cmd>) -> Result<Program, (Vec<Cmd>, CompileError)> {
     use Cmd::*;
     let (mut bg, mut fg, mut khz) = (None, None, None);
     for cmd in &cmds {
@@ -95,10 +95,15 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, CompileError> {
             Lt | Gt | Leq | Geq | Eq | Neq => -1,
         };
         if stack_size <= 0 {
-            return Err(CompileError {
-                index: i,
-                stack_size,
-            });
+            // Hand back the Vec<Cmd> since we probably shouldn't drop it.
+            return Err((
+                cmds.clone(),
+                CompileError {
+                    instruction: cmd.clone(),
+                    index: i,
+                    stack_size,
+                },
+            ));
         }
     }
     Ok(Program { cmds, bg, fg, khz })
@@ -112,6 +117,7 @@ impl std::fmt::Display for Program {
 
 #[derive(Debug)]
 pub struct CompileError {
+    instruction: Cmd,
     index: usize,
     stack_size: isize,
 }
@@ -120,7 +126,8 @@ impl<'a> std::fmt::Display for CompileError {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             fmt,
-            "Attempt to pop beyond stack size. index: {}, size of stack {}",
+            "Attempt to pop beyond stack size. instruction: {} index: {}, size of stack {}",
+            self.instruction,
             self.index,
             self.stack_size
         )
