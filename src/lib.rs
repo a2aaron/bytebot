@@ -307,7 +307,7 @@ pub fn eval_beat<T: Into<Val>>(program: &Program, t: T) -> Val {
                 let index: i64 = stack.pop().unwrap().into();
                 // We want to split off from the end, so we must subtract here.
                 let split_index = stack.len() - size;
-                let mut vec = stack.split_off(split_index);
+                let vec = stack.split_off(split_index);
                 let size = size as i64;
                 // Calculate the positive modulus (% gives remainder, which
                 // is slightly different than mod for negative values)
