@@ -75,7 +75,8 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, CompileError> {
     }
     // Validate the bytebeat by checking that the stack does not get popped when empty
     let mut stack_size = 0 as isize;
-    for (i, cmd) in cmds.iter().enumerate() {
+    let mut err_index = None;
+    for (index, cmd) in cmds.iter().enumerate() {
         stack_size += match *cmd {
             Var | NumF(_) | NumI(_) => 1,
             Fg(_) | Bg(_) | Khz(_) | Comment(_) => continue,
@@ -95,15 +96,18 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, CompileError> {
             Lt | Gt | Leq | Geq | Eq | Neq => -1,
         };
         if stack_size <= 0 {
-            // Hand back the Vec<Cmd> since we probably shouldn't drop it.
-            return Err(CompileError {
-                cmds: cmds.clone(),
-                index: i,
-                stack_size,
-            });
+            err_index = Some(index);
+            break;
         }
     }
-    Ok(Program { cmds, bg, fg, khz })
+    match err_index {
+        None => Ok(Program { cmds, bg, fg, khz }),
+        Some(index) => Err(CompileError {
+            cmds,
+            index,
+            stack_size,
+        }),
+    }
 }
 
 impl std::fmt::Display for Program {
