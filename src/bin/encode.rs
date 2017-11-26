@@ -11,9 +11,17 @@ fn main() {
         let mut text = String::new();
         std::io::stdin().read_to_string(&mut text).unwrap();
         match bytebeat::parse_beat(&text) {
-            Ok(code) => bytebeat::compile(code).unwrap(),
-            Err(_) => {
-                eprintln!("Error parsing bytebeat");
+            Ok(code) => {
+                match bytebeat::compile(code) {
+                    Ok(code) => code,
+                    Err(compile_error) => {
+                        eprintln!("Error compiling bytebeat: {}", compile_error);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            Err(parse_error) => {
+                eprintln!("Error parsing bytebeat: {}", parse_error);
                 std::process::exit(1);
             }
         }

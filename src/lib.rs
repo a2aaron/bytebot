@@ -114,6 +114,16 @@ impl std::fmt::Display for Program {
 pub struct CompileError {
     index: usize,
     stack_size: i32,
+
+impl<'a> std::fmt::Display for CompileError {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            fmt,
+            "Attempt to pop beyond stack size. index: {}, size of stack {}",
+            self.index,
+            self.stack_size
+        )
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -374,6 +384,19 @@ pub enum ParseError<'a> {
     BadBG(&'a str, usize),
     BadKhz(&'a str, usize),
     UnknownToken(&'a str, usize),
+}
+
+impl<'a> std::fmt::Display for ParseError<'a> {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        use ParseError::*;
+        match *self {
+            BadArr(token, index) => write!(fmt, "Bad Array op: {}, index: {}", token, index),
+            BadFG(token, index) => write!(fmt, "Bad Foreground Color: {}, index: {}", token, index),
+            BadBG(token, index) => write!(fmt, "Bad Background Color: {}, index: {}", token, index),
+            BadKhz(token, index) => write!(fmt, "Bad Sample Rate: {}, index: {}", token, index),
+            UnknownToken(token, index) => write!(fmt, "Unknown Token: {}, index: {}", token, index),
+        }
+    }
 }
 
 impl std::fmt::Display for Cmd {
