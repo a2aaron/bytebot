@@ -484,6 +484,7 @@ mod tests {
         (
             name: $name:ident,
             code: [$($cmd:expr),* $(,)*],
+            index: $index:expr,
         ) => {
             mod $name {
                 use super::*;
@@ -494,6 +495,14 @@ mod tests {
                     let result = compile(cmd);
                     assert!(result.is_err());
                 }
+
+                #[test]
+                fn test_err_index() {
+                    use Cmd::*;
+                    let cmd = vec![$($cmd),*];
+                    let result = compile(cmd).err().unwrap();
+                    assert_eq!(result.index, $index);
+                }
             }
         }
     }
@@ -501,41 +510,49 @@ mod tests {
     test_invalid! {
         name: add_empty,
         code: [Add],
+        index: 0,
     }
 
     test_invalid! {
         name: add_small_stack,
         code: [Var, Add],
+        index: 1,
     }
 
     test_invalid! {
         name: cond_small_stack,
         code: [Var, Var, Cond],
+        index: 2,
     }
 
     test_invalid! {
         name: empty_arr_is_err,
         code: [Arr(0)],
+        index: 0,
     }
 
     test_invalid! {
         name: arr_stack_too_small,
         code: [Var, Arr(1)],
+        index: 1,
     }
 
     test_invalid! {
         name: arr_stack_too_small2,
         code: [NumI(1), NumI(2), NumI(3), Arr(3)],
+        index: 3,
     }
 
     test_invalid! {
         name: sin_empty,
         code: [Sin],
+        index: 0,
     }
 
     test_invalid! {
         name: should_not_dip_below_zero,
         code: [Var, Var, Var, Add, Add, Add, Var],
+        index: 5,
     }
 
     #[test]
