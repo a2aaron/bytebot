@@ -11,6 +11,7 @@ pub enum Cmd {
     Var,
     NumF(f64),
     NumI(i64),
+    Hex(i64),
     Add,
     Sub,
     Mul,
@@ -81,7 +82,7 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, CompileError> {
     let mut err_index = None;
     for (index, cmd) in cmds.iter().enumerate() {
         stack_size += match *cmd {
-            Var | NumF(_) | NumI(_) => 1,
+            Var | NumF(_) | NumI(_) | Hex(_) => 1,
             Fg(_) | Bg(_) | Khz(_) | Comment(_) => continue,
             // These all pop 1 value off the stack and push 1
             // value back on, so the net effect is no stack change
@@ -255,6 +256,7 @@ pub fn eval_beat<T: Into<Val>>(program: &Program, t: T) -> Val {
             Var => stack_op!(stack { } => t),
             NumF(y) => stack_op!( stack { } => y),
             NumI(y) => stack_op!( stack { } => y),
+            Hex(y) => stack_op!( stack { } => y),
             Add => stack_op!(stack { a: i64, b: i64 } => a.wrapping_add(b)),
             Sub => stack_op!(stack { a: i64, b: i64 } => a.wrapping_sub(b)),
             Mul => stack_op!(stack { a: i64, b: i64 } => a.wrapping_mul(b)),
@@ -378,6 +380,11 @@ pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, ParseError> {
             }
             x if x.starts_with("!khz:") => x[5..].parse().map(Khz).map_err(|_| BadKhz(x, i)),
             x if x.starts_with('#') => Ok(Comment(x[1..].into())),
+            x if x.starts_with("0x") => {
+                i64::from_str_radix(&x[2..], 16).map(Hex).map_err(|_| {
+                    UnknownToken(x, i)
+                })
+            }
             x => {
                 if x.contains('.') {
                     x.parse().map(NumF).map_err(|_| UnknownToken(x, i))
@@ -425,6 +432,7 @@ impl std::fmt::Display for Cmd {
                 }
             }
             NumI(y) => write!(fmt, "{}", y),
+            Hex(y) => write!(fmt, "0x{:X}", y), // Write out as 0xHEX
             Add => write!(fmt, "+"),
             Sub => write!(fmt, "-"),
             Mul => write!(fmt, "*"),
