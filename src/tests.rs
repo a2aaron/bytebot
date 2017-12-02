@@ -468,8 +468,8 @@ fn test_metadata() {
 test_beat! {
     name: hex,
     text: "0x0 0x1 0x2 0xA 0xF 0x10 0xA0 0xFF 0xFFFF 0xBAD1DEA",
-    code: [Hex(0), Hex(1), Hex(2), Hex(10), Hex(15), Hex(16),
-           Hex(160), Hex(255), Hex(65535), Hex(195894762)],
+    code: [Hex(0x0), Hex(0x1), Hex(0x2), Hex(0xA), Hex(0xF), Hex(0x10),
+           Hex(0xA0), Hex(0xFF), Hex(0xFFFF), Hex(0xBAD1DEA)],
     eval: {
         0 => 195894762,
     }
