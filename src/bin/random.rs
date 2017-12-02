@@ -6,8 +6,15 @@ use bytebeat::random;
 mod util;
 
 fn main() {
-    let length = rand::thread_rng().gen_range::<usize>(5, 16);
+    for _ in 0..10 {
+        let length = rand::thread_rng().gen_range::<usize>(2, 7);
+        let code = random::random_t_multiply(length);
+        println!("{}", bytebeat::format_beat(&code));
+    }
+
+    let length = rand::thread_rng().gen_range::<usize>(2, 7);
     let code = random::random_t_multiply(length);
+    println!("{}", bytebeat::format_beat(&code));
     let code = bytebeat::compile(code).unwrap();
     // eprintln!("{}", bytebeat::format_beat(&code));
     let buf: Vec<_> = (0..5*8000)
@@ -21,7 +28,7 @@ fn main() {
         // pipe that to sox/mplayer.
         eprintln!("Skipping: {}", code)
     } else {
-        println!("Encoding...");
+        println!("Encoding... (formula: {})", code);
         util::generate_video(&code, "out.mp4");
         eprintln!("{}", code);
     }
