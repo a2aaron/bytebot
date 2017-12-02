@@ -1,7 +1,10 @@
 [package]
 name = "bytebeat"
 version = "0.1.0"
-authors = ["Caleb Jones <code@calebjones.net>"]
+authors = ["Aaron Kofsky <a2aarontothe2@gmail.com>", "Caleb Jones <code@calebjones.net>"]
 
 [dependencies]
+dotenv = "0.10"
+egg-mode = { git = "https://github.com/QuietMisdreavus/twitter-rs.git" }
+tokio-core = "0.1"
 rand = "*"

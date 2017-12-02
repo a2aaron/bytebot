@@ -1,0 +1,407 @@
+//
+t 255 % t & t 13 >> t & -
+
+//
+t t 255 % & t 13 >> t t 8 >> t 16 >> | % & -
+
+//cycles through all t*(t>>10&) melodies, like the 42 melody
+t t 10 >> t 16 >>16 1 + & *
+
+// basic rng w/ slight bias to fliping between high and low
+t 10 >> t 14 >> ^ t 12 >> | 42319 *
+
+//odd thing
+t t >>
+
+//chaotic
+t 8 >> t & t *
+
+//Slower version, has interesting properties
+t 13 >> t & t 8 >> *
+
+//Ambient
+t 8 >> t & t 15 >> t & *
+
+//mod fractal tree cycles through different rhythms
+t % t 8 >> t 16 >> | t &
+
+//Acts like t and can be used for cool effect. Generates interesting and infinite rhythm variations.
+t t 8 >> t 16 >> | %
+
+//Add more 9s to make slower, remove to make faster.
+-0.99999999 t t *. *.
+
+//Quiet, do -1 for to make louder and change the rhythm slightly.
+t t 13 >> t & %
+
+//Not really sure.
+t 8 >> t 4 >> & t 16 >> t 8 >> & >> t *
+
+//t>>8&t variation?
+t t * t 8 >> & t /. 1 -.
+
+// 11 khz only
+!khz:11 t t 8 >> t 4 >> ^ %
+
+//Another t like formula. Also a sweet 11khz song
+!khz:11 t t 11 >> t 12 >> ^ %
+
+// 22 khz only
+!khz:22 t t 4 >> t 16 >> ^ %
+
+// i don't even
+t (t>>(t>>13&t)) *
+
+// The 8-bit echo, to play with, edit t>>12 to a number. Powers of 2 give square waves, powers of 2-1 give sawtooth, others are from t>>8&t. Change t>>12 to t>>n to speed up or slow down. Remove -1 for starting quiet.
+t t 4 >> t 8 >> & - t 12 >> & 1 -
+
+//WARNING LOUD! Some kind of glitchcore thing?
+t t 16 >> t 8 >> | % 2 >> t & 1 -
+
+//Variation on above.
+t t 1 >> t 9 >> | % 2 >> t & 1 -
+
+//Differences
+t t 8 >> & t 13 >> t & - t t 8 >> & t 13 >> - & t 8 >> t & ^
+
+//strange rhythms
+t t 8 >> t & t 14 >> t & | <<
+
+//
+!khz:16 t 255 % t 255 t 100000 /. +. %. &
+
+//(t>>8&t)-1 chaos remix
+t t t 8 >> t & / <<
+
+//call and respond, 11kHz
+!khz:11 t t 1 >> t 8 >> | t 13 >> ^ <<
+
+//call and respond 2, 11kHz
+!khz:11 t t 1 >> t 8 >> | t 13 >> t 12 >> & * <<
+
+//another chaos remix
+t t 8 >> t t 10 >> t & / & <<
+
+//8 or 11khz best, extremely loud grinding machine
+!khz:11 t t t 8 >> t 16 >> | % /.
+
+//32kHz, super Sierpinski scale
+!khz:32 t 8 >> t 16 >> & t * 4 >>
+
+//quarternoisemachine
+t t 15 >> t 8 >> t & + & t *
+
+//
+t t 8 >> & t 16 >> t & -
+
+//generic: (sin(sin(t/pitch))*t*t/speed)*amplitude)+128
+t 10 /. sin t *. t *. 10000000000 /. sin 32 *. 128 +.
+
+//
+t 50 /. tan t *. t *. 10000000000 /. sin 32 *. 128 +.
+
+//Speedupslowdown
+t 10000 /. sin t *. 4 >> t 8 >> & t *
+
+//t>>n like formula, where n is which t>>_ to act like. It's glitchy-ish.
+t 10000 /. sin t 4 >> t 10001 /. sin /.
+
+//
+t 10000 /. sin t 9 >> t 10001 /. sin /.
+
+//non-cliping, sine form of t>>8&t
+t 10 /. sin t 8 >> t & 256 % 2 /. *. 128 +.
+
+//Sine wave heaven
+t t 8 >> t 13 >> & 1 + /. sin 64 *. 128 +.
+
+//
+t t * 10000 t 8 >> t 13 >> & * /.
+
+//
+t t 7 >> t 8 >> t 16 >> | | & t ^ t *
+
+//Triangle wave song.
+2 t 8 >> t 13 >> & pow t *. 128 2 t 8 >> t 13 >> & pow /. t & 1 > ? 0 2 t 8 >> t 13 >> & pow -. t 1 + *.
+
+//it wont stop
+t t 401 /. t 400 /. ^ *
+
+//Chain dance
+t t t 4 / >> >> t ^
+
+//Slow n Noisy chain
+t 256 / t t >> >>
+
+//creepy
+t 10 /. t 2 t 10 >> pow *. sin +. sin 64 *. 128 +.
+
+//ambient
+t 64 / t t 4 / >> >>
+
+//conditional expression experiment. Pulse wave duty cycle cycler
+0 128 t 256 % t 40000 /. cos 128 *. 128 +. > ?
+
+//Use with below
+t t 8 >> t 3 >> & t 16 >> t & >> *
+
+//Use with above
+t t 8 >> t 3 >> & * t 16 >> t & >>
+
+//break
+t t t 8 >> t 16 >> | % 8 >> t 5 >> * | t t 5 >> * ^
+
+//ambient
+t t t 4 / >> %
+
+//more conditional expressions!
+128 64 t t 8 >> t t 13 >> & & /. sin 0 > ?
+
+//morse code dialoge
+128 0 t t 8 >> t 7 >> & 3 % /. sin 0 > ?
+
+//alternate version (uses sine waves instead of square)
+t t 8 >> t 7 >> & 3 % /. sin 64 *. 128 +.
+
+//ststututterter
+t 0 t 8 >> t t 9 >> t 13 >> | | | - * t ^
+
+//sinsongs, 44k
+!khz:44 t t 7 >> t 1 >> & /. sin 100 *. 128 +.
+
+//tejeez's t>>5|t>>8 song, edited to last forever and be scariers
+t 5 >> t 8 >> | t * t 16 >> t & >>
+
+//Pulse wave heaven, General formula: ((BYTEBEAT1)-(BYTEBEAT2))&MULTOF2, bytebeat1 can be just "1"
+t 8 >> t & t 3 >> t 8 >> & t 16 >> | - 128 &
+
+//dance of the fractals
+t t 8 >> ^ t 16 >> t & *
+
+//Voice changes
+t t * t t 12 >> ^ /
+
+//fractal heaven
+t t * t t 8 >> ^ / t &
+
+//t>>4&t>>8 builder
+t 4 >> t 8 >> & t 16 >> t & *
+
+//dialtones
+t 4 >> t 8 >> & t 16 >> t & /
+
+//weaoowwwoooooiiinnn
+2 t 1 & * 1 - t * t 8 >> -
+
+//eeclicks, change t>>16 to t>>16&t for a variation.
+t 5 >> t 1 & t 16 >> + *
+
+//speedupupup
+t t * 10000000 / sin 0.5 > 1 - t *
+
+//waiver
+t 91 / t & t 90 / t & ^ 1 -
+
+//glissando
+t t * t 13 >> t 8 >> ^ /.
+
+//run
+t 10 / 8 >> t 10 / & sin 64 *. 128 +.
+
+//click and pop
+t 10 /. sin t 1000 t 10 >> t 12 >> | - /. +. sin 64 *. 128 +.
+
+//click and pop 2
+t 10 /. sin t 1000 t 10 >> t 12 >> ^ - /. +. sin 64 *. 128 +.
+
+//Broken Signal
+t t t 1 >> t & % >>
+
+//chaos
+t t * t 8 >> t 4 >> & /
+
+//beep
+t t 8 >> t 7 >> & / t & 1 -
+
+//t>>4&t>>8 remix
+t t 8 >> t 4 >> & / t 8 >> & t *
+
+//32kHz
+t t t 8 >> t 12 >> | % /
+
+//trill
+t 100 /. sin t 2 t 10 >> t 12 >> & 9 % + /. -. sin 64 *. 128 +.
+
+//(t/(t%(t>>8|t>>16))) and (t*t/(t>>8|t>>13)) mashup
+t t t 8 >> t 16 >> | % / t t * t 8 >> t 13 >> | / |
+
+//variation
+t t t 8 >> t 16 >> | % / t t * t 8 >> | t 16 >> / |
+
+//Distort
+t 10 /. sin t 1000 t 10 >> t 12 >> ^ - /. +. sin 64 *. t 10 /. sin t 1000 t 10 >> t 12 >> | - /. +. sin 64 *. 128 + ^
+
+//bit crusher
+t 10 /. sin t 1000 t 10 >> t 4 >> & - /. +. sin 64 *. 128 +.
+
+//click and pop 3
+t t 8 >> t 16 >> | % 10 /. sin 64 *. 128 +.
+
+//RNG changes stuff. Replace the big number with another for a variation.
+t 5 >> t 8 >> | t t 16 >> sin 6890866887 * | *
+
+//what's left behind
+t t 8 >> t 16 >> | % 5 >> t 8 >> | t * t t 8 >> * ^
+
+//(t>>5|t>>8)*t builder
+t t 8 >> t 16 >> | % 5 >> t 8 >> | t * t t 8 >> * -
+
+//process complete
+1.001 t *. 0 t - 1.001 *. ^ t 500 t 16 >> t 8 >> & + /. +.
+
+//dark kick
+t t 4 >> & t 13 >> t & -
+
+//replace "30" with another number to get a new song
+t t 12 >> sin 30 *. 5 %. /. sin t t 12 >> sin 30 *. 6 %. /. sin +. 64 *. 128 +.
+
+//green noise, black noise
+t 0 t - t t 15 >> % 0 > ? 4 >> t 0 t - t t 15 >> % 0 > ? 8 >> & t 0 t - t t 15 >> % 0 > ? *
+
+//duo team. Based off of mu6k's "Long Line Theory"
+t 0.98 *. t 13 >> t 12 >> & %. t t 13 >> t 10 >> & % +
+
+//harmony. Based off of mu6k's "Long Line Theory"
+t 50.01 %. t 40.1 %. t 30.1 %. t 60.01 %. +. +. +.
+
+//harmony v2. Based off of mu6k's "Long Line Theory"
+1 2 3 4 3 4 1 t 13 >> [7 t * 50.01 %. 1 2 3 4 3 4 1 t 13 >> [7 t * 40.1 %. 1 2 3 4 3 4 1 t 13 >> [7 t * 30.1 %. 1 2 3 4 3 4 1 t 13 >> [7 t * 60.01 %. +. +. +.
+
+//sad chords, again based off of mu6k's "Long Line Theory";n= 4 6 4 6 1 3 1 3 t 13 >> [8 50 +;w= 1 3 5 t 13 >> [3 t *; w n % w n 10 - % w n 10 + % + +
+t 4 6 4 6 1 3 1 3 t 13 >> [8 50 + % t 4 6 4 6 1 3 1 3 t 13 >> [8 50 + 10 - % t 4 6 4 6 1 3 1 3 t 13 >> [8 50 + 10 + % + +
+
+//glitch
+t 8 >> t t 4 >> t 8 >> 8 & / 4 >> & t *
+
+//not quite a sine wave
+1 -1 t t 8 >> t 4 >> & * 128 & ? t t 8 >> t 4 >> & 24 % 1 + /. sin *. 128 *. 128 +.
+
+//use with below
+t 8 >> t 16 >> t & + t 2 >> & t *
+
+//use with above, tag team swish
+t 8 >> t 16 >> t & + t 3 >> & t *
+
+//array song. First real one i promise this time.
+t 5 4 3 2 t 16 >> [4 *. 1 1 2 3 1 1 2 3 1 1 2 4 4 4 5 5 5 t 12 >> [17 /. 50.1 %. t 5 4 3 2 t 16 >> [4 *. 1 1 2 3 1 1 2 3 1 1 2 4 4 4 5 5 5 t 12 >> [17 /. 50 %. +.
+
+//reverse
+t 8 t 32 /. 3 %. / >>
+
+//everytype smasher
+t t 8 >> t 2 >> & t * t 8 >> t 3 >> & t * /. t 8 >> t 3 >> & t * t 8 >> t 2 >> & t * /. +. *
+
+//muncher
+t 10 >> t 1 >> | t & t 18 >> t & | t -
+
+//plucker
+t 4 / t 4 / >> t t 8 / >> >> t 2 >> |
+
+//plucker v2
+t 4 / t 4 / >> t 2 >> |
+
+//jumper
+t 1000 / t 1001 / ^ t *
+
+//noisecore synthcore
+t t t 13 >> t & % /
+
+//cyclic
+t t t t 16 >> 1 + + ^ /
+
+//random ambiance, change what's in tan() for a different sound track.
+t t 1 >> | tan 128 +
+
+//pulsar hell
+t 100 /. sin t *. 10000 /. sin 64 *. 128 +.
+
+//slightly too large
+t 100 /. sin 128 t 1000000000 /. +. *. 128 *.
+
+//filterspinsky
+0 t - t 12 >> & 32 /. 1 -. t *.
+
+//triangle wave, todo: find a way to allow for any pitch.
+0 t - 128 & 64 /. 1 -. t *.
+
+//tertiary operator maddness
+t 0 t - t 40 /. sin 0.5 > ? 
+
+//wowaowowao
+t 5 /. t 5 /. sin t 1000 /. +. +. sin 64 *. t 2500 /. +.
+
+//signal to noise ratio
+t 5 /. t 5 /. sin  t 4000 t 8 >> t 4 >> ^ * /. /. +. sin 64 *. 128 +.
+
+//sine wave harmonics and such
+t 5 /. sin t t *. t 8 >> t 4 >> ^ /. +. sin 100 *. 128 +.
+
+//signal decay2
+t t * t 8 >> t & /
+
+//replace n with a smallish number (1 to 16 best) for a variety of effects.
+t t * t 2 >> /
+
+//replace n with a smallish number (1 to 16 best) for a variety of effects.
+t t * t 7 >> /
+
+//replace n with a smallish number (1 to 16 best) for a variety of effects.
+t t * t 13 >> /
+
+//everything is broken
+t t * t 9 >> t 8 >> & 1 + / 128 &
+
+//fire crackles
+t 1 t t * /. t ^ *
+
+//
+t t 10 >> t & %
+
+//sawtooth song, 44kHz
+!khz:44 t t * t 8 >> t 15 >> ^ /
+
+//white noise filter, 32kHz recommended
+!khz:32 t t 7 >> t 9 >> & / t t 7 >> t 9 >> & / sin *. sin 64 *. 128 +.
+
+//echo chambered
+t 1 2 3 4 5 6 7 8 t t 1 >> >> [8 * t -
+
+//wip
+t t 5 * & t 4 >> | t t 4 >> t 8 << * 1 - | + t 12 >> ^
+
+//it takes 2 minutes to sync
+t 2 >> t 2 >> * t 8 >> %
+
+//rotate
+t t 2000 /. / t 2000 /. *. t ^
+
+//rotate2 (change 63 to any (2\^n)-1 for a slower or faster version)
+t t 63 /. / t 63 /. *. t ^
+
+//basic array thing
+t 3 4 5 4 3 t 13 >> 3 & [5 /. sin 2 pow 0.5 pow t  2 3 4 3 2 t 14 >> 3 & [5 /. sin +. 40 *. 128 +.
+
+//fractal glitcher
+t t t 1 >> t & % t 3 >> t 4 >> ^ | 7 >> & 1 -
+
+//fractal glitcher v2
+t t t 1 >> t & % t 13 >> t 5 >> ^ | 7 >> & 1 -
+
+//weowoo
+t 1024 t 10 >> t 13 >> & - /. t 8 /. sin t 16384 /. cos 1.5 *. 2 pow 0.5 pow 1 + *. +. sin 64 *. 128 +.
+
+//
+t 4 /. sin t 0.75 *. sin 9 /. t 1.25 *. sin 25 /. t 1.75 *. sin 49 /. t 2.25 *. sin 81 /. t 2.75 *. sin 121 /. t 3.25 *. sin 169 /. t 3.75 *. sin 225 /. t 4.25 *. sin 289 /. t 4.75 *. sin 361 /. -. +. -. +. -. +. -. +. -. 16 *. 128 +.
+
+//
+t 4 /. sin t 0.75 *. sin 3 /. t 1.25 *. sin 5 /. t 1.75 *. sin 7 /. t 2.25 *. sin 9 /. t 2.75 *. sin 11 /. t 3.25 *. sin 13 /. t 3.75 *. sin 15 /. t 4.25 *. sin 17 /. t 4.75 *. sin 19 /. +. +. +. +. +. +. +. +. +. 16 *. 128 +.

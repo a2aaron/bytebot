@@ -8,7 +8,7 @@ enum Template {
     Operation,
 }
 
-static OPERATORS: [Cmd; 15] = [
+const OPERATORS: [Cmd; 15] = [
     Var, // Var is used as a stand in for Var or Num
     Var,
     Var,
@@ -44,7 +44,7 @@ pub fn random_t_multiply(goal_length: usize) -> Vec<Cmd> {
                 if vec.len() > goal_length {
                     Template::Operation
                 } else {
-                    *choose(&[Template::TRShift, Template::Operation])
+                    choose(vec![Template::TRShift, Template::Operation])
                 }
             },
             // We need to have atleast 3 avaliable values on the stack
@@ -78,7 +78,7 @@ pub fn random_beat(goal_length: usize) -> Vec<Cmd> {
                 if vec.len() > goal_length {
                     random_op()
                 } else {
-                    *choose(&OPERATORS)
+                    choose(OPERATORS.to_vec())
                 }
             }
         };
@@ -88,7 +88,7 @@ pub fn random_beat(goal_length: usize) -> Vec<Cmd> {
         }
 
         num_args += match random_cmd {
-            Var | Num(_) => 1,
+            Var | NumF(_) | NumI(_) => 1,
             _ => -1,
         };
 
@@ -99,26 +99,25 @@ pub fn random_beat(goal_length: usize) -> Vec<Cmd> {
 
 /// Returns one of [Sub, Mul, Div, Mod, Shl, Shr, And, Orr, Xor]
 fn random_op() -> Cmd {
-    *choose(&[Sub, Mul, Div, Mod, Shl, Shr, And, Orr, Xor])
+    choose(vec![Sub, Mul, Div, Mod, Shl, Shr, And, Orr, Xor])
 }
 
 /// Returns `t >> n` (`[Var, Num, Shr]) where `Num` is in range [0, 16]
 /// `t >> 0` will be optimised to just `t`
 fn random_t_shr() -> Vec<Cmd> {
-    let number = rand::thread_rng().gen_range::<i32>(0, 17);
+    let number = rand::thread_rng().gen_range(0, 17);
     match number {
-
         0 => vec!(Var),
-        _ => vec!(Var, Num(number as f64), Shr),
+        _ => vec!(Var, NumI(number), Shr),
     }
 }
 
 /// Returns either a Var or a Num in the range [0, 256)
 fn random_value() -> Cmd {
-    let number = rand::thread_rng().gen_range::<i32>(0, 256);
-    *choose(&[Cmd::Var, Cmd::Num(number as f64)])
+    let number = rand::thread_rng().gen_range(0, 256);
+    choose(vec![Cmd::Var, Cmd::NumI(number)])
 }
 
-fn choose<T>(vec: &[T]) -> &T {
-    rand::thread_rng().choose(vec).unwrap()
+fn choose<T: Clone>(vec: Vec<T>) -> T {
+    rand::thread_rng().choose(&vec).unwrap().clone()
 }

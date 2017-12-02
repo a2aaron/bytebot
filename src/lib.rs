@@ -1,12 +1,16 @@
 extern crate rand;
 
+pub mod encode;
 pub mod random;
 
+use encode::Color;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Cmd {
     Var,
-    Num(f64),
+    NumF(f64),
+    NumI(i64),
     Add,
     Sub,
     Mul,
@@ -26,138 +30,310 @@ pub enum Cmd {
     MulF,
     DivF,
     ModF,
+    Lt,
+    Gt,
+    Leq,
+    Geq,
+    Eq,
+    Neq,
+    Cond,
+    Arr(usize),
+    Fg(Color),
+    Bg(Color),
+    Khz(u8),
+    Comment(String),
 }
 
-pub fn eval_beat(cmds: &[Cmd], t: f64) -> Result<f64, ()> {
+pub struct Program {
+    cmds: Vec<Cmd>,
+    bg: Option<Color>,
+    fg: Option<Color>,
+    khz: Option<u8>,
+}
+
+impl Program {
+    pub fn bg(&self) -> Option<Color> {
+        self.bg
+    }
+
+    pub fn fg(&self) -> Option<Color> {
+        self.fg
+    }
+
+    pub fn hz(&self) -> Option<u32> {
+        self.khz.map(|x| x as u32 * 1000)
+    }
+}
+
+pub fn compile(cmds: Vec<Cmd>) -> Result<Program, CompileError> {
     use Cmd::*;
-    let mut stack = Vec::new();
-    for cmd in cmds {
+    let (mut bg, mut fg, mut khz) = (None, None, None);
+    for cmd in &cmds {
         match *cmd {
-            Var => stack.push(t),
-            Num(y) => stack.push(y),
-            Add => {
-                let b = stack.pop().ok_or(())? as i64;
-                let a = stack.pop().ok_or(())? as i64;
-                stack.push(a.wrapping_add(b) as f64);
-            }
-            Sub => {
-                let b = stack.pop().ok_or(())? as i64;
-                let a = stack.pop().ok_or(())? as i64;
-                stack.push(a.wrapping_sub(b) as f64);
-            }
-            Mul => {
-                let b = stack.pop().ok_or(())? as i64;
-                let a = stack.pop().ok_or(())? as i64;
-                stack.push(a.wrapping_mul(b) as f64);
-            }
-            Div => {
-                let b = stack.pop().ok_or(())? as i64;
-                let a = stack.pop().ok_or(())? as i64;
-                if b == 0 {
-                    stack.push(0.0);
-                } else {
-                    stack.push(a.wrapping_div(b) as f64);
-                }
-            }
-            Mod => {
-                let b = stack.pop().ok_or(())? as i64;
-                let a = stack.pop().ok_or(())? as i64;
-                if b == 0 {
-                    stack.push(0.0);
-                } else {
-                    stack.push(a.wrapping_rem(b) as f64);
-                }
-            }
-            Shl => {
-                let mut b = stack.pop().ok_or(())? as i64 % 64;
-                let a = stack.pop().ok_or(())? as i64;
-                if b < 0 {
-                    b += 64;
-                }
-                stack.push((a << b) as f64);
-            }
-            Shr => {
-                let mut b = stack.pop().ok_or(())? as i64 % 64;
-                let a = stack.pop().ok_or(())? as i64;
-                if b < 0 {
-                    b += 64;
-                }
-                stack.push((a >> b) as f64);
-            }
-            And => {
-                let b = stack.pop().ok_or(())? as i64;
-                let a = stack.pop().ok_or(())? as i64;
-                stack.push((a & b) as f64);
-            }
-            Orr => {
-                let b = stack.pop().ok_or(())? as i64;
-                let a = stack.pop().ok_or(())? as i64;
-                stack.push((a | b) as f64);
-            }
-            Xor => {
-                let b = stack.pop().ok_or(())? as i64;
-                let a = stack.pop().ok_or(())? as i64;
-                stack.push((a ^ b) as f64);
-            }
-            Sin => {
-                let a = stack.pop().ok_or(())?;
-                stack.push(a.sin());
-            }
-            Cos => {
-                let a = stack.pop().ok_or(())?;
-                stack.push(a.cos());
-            }
-            Tan => {
-                let a = stack.pop().ok_or(())?;
-                stack.push(a.tan());
-            }
-            Pow => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push(a.powf(b));
-            }
-            AddF => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push(a + b);
-            }
-            SubF => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push(a - b);
-            }
-            MulF => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                stack.push(a * b);
-            }
-            DivF => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                if b == 0.0 {
-                    stack.push(0.0);
-                } else {
-                    stack.push(a / b);
-                }
-            }
-            ModF => {
-                let b = stack.pop().ok_or(())?;
-                let a = stack.pop().ok_or(())?;
-                if b == 0.0 {
-                    stack.push(0.0);
-                } else {
-                    stack.push(a % b);
-                }
-            }
+            Bg(col) => bg = Some(col),
+            Fg(col) => fg = Some(col),
+            Khz(k) => khz = Some(k),
+            _ => (),
         }
     }
-    stack.pop().ok_or(())
+    // Validate the bytebeat by checking that the stack does not get popped when empty
+    let mut stack_size = 0 as isize;
+    let mut err_index = None;
+    for (index, cmd) in cmds.iter().enumerate() {
+        stack_size += match *cmd {
+            Var | NumF(_) | NumI(_) => 1,
+            Fg(_) | Bg(_) | Khz(_) | Comment(_) => continue,
+            // These all pop 1 value off the stack and push 1
+            // value back on, so the net effect is no stack change
+            Sin | Cos | Tan => 0,
+            // Arr(x) pops a value off the stack (called the index)
+            // then pops x more values off the stack. Finally, it
+            // pushes one value back onto the stack based on the index
+            // Thus the net effect of Arr is to reduce the stack size by x.
+            Arr(x) => -(x as isize),
+            Cond => -2,
+            // Split these into multiple branches to make rustfmt stop complaining
+            Add | Sub | Mul | Div | Mod => -1,
+            Shl | Shr | And | Orr | Xor => -1,
+            Pow | AddF | SubF | MulF | DivF | ModF => -1,
+            Lt | Gt | Leq | Geq | Eq | Neq => -1,
+        };
+        if stack_size <= 0 {
+            err_index = Some(index);
+            break;
+        }
+    }
+    match err_index {
+        None => Ok(Program { cmds, bg, fg, khz }),
+        Some(index) => Err(CompileError {
+            cmds,
+            index,
+            stack_size,
+        }),
+    }
 }
 
-pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
+impl std::fmt::Display for Program {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(fmt, "{}", format_beat(&self.cmds))
+    }
+}
+
+#[derive(Debug)]
+pub struct CompileError {
+    cmds: Vec<Cmd>,
+    index: usize,
+    stack_size: isize,
+}
+
+impl<'a> std::fmt::Display for CompileError {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            fmt,
+            "Attempt to pop beyond stack size. instruction: {} index: {}, size of stack {}",
+            self.cmds[self.index],
+            self.index,
+            self.stack_size
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum Val {
+    F(f64),
+    I(i64),
+}
+
+impl From<bool> for Val {
+    fn from(b: bool) -> Val {
+        if b { Val::I(1) } else { Val::I(0) }
+    }
+}
+
+impl From<i64> for Val {
+    fn from(i: i64) -> Val {
+        Val::I(i)
+    }
+}
+
+impl From<f64> for Val {
+    fn from(f: f64) -> Val {
+        Val::F(f)
+    }
+}
+
+impl Into<bool> for Val {
+    fn into(self) -> bool {
+        match self {
+            Val::F(x) if x == 0.0 => false,
+            Val::I(0) => false,
+            _ => true,
+        }
+    }
+}
+
+impl Into<i64> for Val {
+    fn into(self) -> i64 {
+        match self {
+            Val::F(x) => x as i64,
+            Val::I(x) => x,
+        }
+    }
+}
+
+impl Into<f64> for Val {
+    fn into(self) -> f64 {
+        match self {
+            Val::F(x) => x,
+            Val::I(x) => x as f64,
+        }
+    }
+}
+
+impl Into<u8> for Val {
+    fn into(self) -> u8 {
+        let x: i64 = self.into();
+        x as u8
+    }
+}
+
+// @Todo: How should this ordering work?? Should we compare intervals?
+impl PartialOrd for Val {
+    fn partial_cmp(&self, rhs: &Val) -> Option<std::cmp::Ordering> {
+        match (*self, *rhs) {
+            (Val::I(l), Val::I(r)) => l.partial_cmp(&r),
+            (Val::F(l), Val::F(r)) => l.partial_cmp(&r),
+            (Val::I(l), Val::F(r)) => (l as f64).partial_cmp(&r),
+            (Val::F(l), Val::I(r)) => l.partial_cmp(&(r as f64)),
+        }
+    }
+}
+
+// @Todo: How should this work? Should we do some smarter interval comparison?
+// Is that equivalent to this?
+impl PartialEq for Val {
+    fn eq(&self, rhs: &Val) -> bool {
+        match (*self, *rhs) {
+            (Val::I(l), Val::I(r)) => l == r,
+            (Val::F(l), Val::F(r)) => l == r,
+            (Val::I(l), Val::F(r)) => l as f64 == r && l == r as i64,
+            (Val::F(l), Val::I(r)) => l == r as f64 && l as i64 == r,
+        }
+    }
+}
+
+/// This allows you to write each expression in terms of consuming the top of the
+/// stack, and then generating the new value to be pushed on.
+///
+/// # Example:
+/// ```rust
+/// stack_op!(stack { a: Val, b: Val, c: bool } => if c { a } else { b })
+/// ```
+/// will pop the top three elements off the stack (with `c` being the topmost),
+/// and then push on either `a` or `b`.
+macro_rules! stack_op {
+    ($stack:ident { $($var:ident : $t:ty),* } => $res:expr) => {{
+        // Pop the variables
+        stack_op!($stack { $($var : $t),* });
+        // Evaluate the expression and push it onto the stack
+        $stack.push($res.into());
+    }};
+    // Pop the variables in reverse order
+    ($stack:ident { }) => {};
+    ($stack:ident { $var:ident : $t:ty $(, $rvar:ident : $rt:ty)* }) => {
+        stack_op!($stack { $($rvar : $rt),* });
+        let $var: $t = $stack.pop().unwrap().into();
+    }
+}
+
+pub fn eval_beat<T: Into<Val>>(program: &Program, t: T) -> Val {
     use Cmd::*;
+    let t = t.into();
+    let mut stack: Vec<Val> = Vec::new();
+    for cmd in &program.cmds {
+        match *cmd {
+            Var => stack_op!(stack { } => t),
+            NumF(y) => stack_op!( stack { } => y),
+            NumI(y) => stack_op!( stack { } => y),
+            Add => stack_op!(stack { a: i64, b: i64 } => a.wrapping_add(b)),
+            Sub => stack_op!(stack { a: i64, b: i64 } => a.wrapping_sub(b)),
+            Mul => stack_op!(stack { a: i64, b: i64 } => a.wrapping_mul(b)),
+            Div => {
+                stack_op!(stack { a: i64, b: i64 } => {
+                    if b == 0 { 0 } else { a.wrapping_div(b) }
+                })
+            }
+            Mod => {
+                stack_op!(stack { a: i64, b: i64 } => {
+                    if b == 0 { 0 } else { a.wrapping_rem(b) }
+                })
+            }
+            Shl => stack_op!(stack { a: i64, b: i64 } => a << (((b % 64) + 64) % 64)),
+            Shr => {
+                stack_op!(stack { a: i64, b: i64 } => {
+                    let mut b = b % 64;
+                    if b < 0 {
+                        b += 64;
+                    }
+                    a >> b
+                })
+            }
+            And => stack_op!(stack { a: i64, b: i64 } => a & b),
+            Orr => stack_op!(stack { a: i64, b: i64 } => a | b),
+            Xor => stack_op!(stack { a: i64, b: i64 } => a ^ b),
+            Sin => stack_op!(stack { a: f64 } => a.sin()),
+            Cos => stack_op!(stack { a: f64 } => a.cos()),
+            Tan => stack_op!(stack { a: f64 } => a.tan()),
+            Pow => stack_op!(stack { a: f64, b: f64 } => a.powf(b)),
+            AddF => stack_op!(stack { a: f64, b: f64 } => a + b),
+            SubF => stack_op!(stack { a: f64, b: f64 } => a - b),
+            MulF => stack_op!(stack { a: f64, b: f64 } => a * b),
+            DivF => {
+                stack_op!(stack { a: f64, b: f64 } => {
+                    if b == 0.0 { 0.0 } else { a / b }
+                })
+            }
+            ModF => {
+                stack_op!(stack { a: f64, b: f64 } => {
+                    if b == 0.0 { 0.0 } else { a % b }
+                })
+            }
+            Lt => stack_op!(stack { a: Val, b: Val } => a < b),
+            Gt => stack_op!(stack { a: Val, b: Val } => a > b),
+            Leq => stack_op!(stack { a: Val, b: Val } => a <= b),
+            Geq => stack_op!(stack { a: Val, b: Val } => a >= b),
+            Eq => stack_op!(stack { a: Val, b: Val } => a == b),
+            Neq => stack_op!(stack { a: Val, b: Val } => a != b),
+            Cond => {
+                stack_op!(stack { a: Val, b: Val, cond: bool } => {
+                    if cond { a } else { b }
+                })
+            }
+            Arr(0) => stack.push(0.into()),
+            Arr(size) => {
+                let index: i64 = stack.pop().unwrap().into();
+                // We want to split off from the end, so we must subtract here.
+                let split_index = stack.len() - size;
+                let vec = stack.split_off(split_index);
+                let size = size as i64;
+                // Calculate the positive modulus (% gives remainder, which
+                // is slightly different than mod for negative values)
+                let index = ((index % size) + size) % size;
+                stack.push(vec[index as usize]);
+            }
+            // These have no runtime effect
+            Fg(..) | Bg(..) | Khz(..) | Comment(..) => (),
+        }
+    }
+    stack.pop().unwrap()
+}
+
+pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, ParseError> {
+    use Cmd::*;
+    use ParseError::*;
     text.split_whitespace()
-        .map(|x| match x {
+        .enumerate()
+        .map(|(i, x)| match x {
             "t" => Ok(Var),
             "+" => Ok(Add),
             "-" => Ok(Sub),
@@ -178,9 +354,61 @@ pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, &str> {
             "*." => Ok(MulF),
             "/." => Ok(DivF),
             "%." => Ok(ModF),
-            x => x.parse().map(Num).map_err(|_| x),
+            "<" => Ok(Lt),
+            ">" => Ok(Gt),
+            "<=" => Ok(Leq),
+            ">=" => Ok(Geq),
+            "==" => Ok(Eq),
+            "!=" => Ok(Neq),
+            "?" => Ok(Cond),
+            x if x.starts_with('[') => x[1..].parse().map(Arr).map_err(|_| BadArr(x, i)),
+            x if x.starts_with("!fg:") => {
+                let raw = u16::from_str_radix(&x[4..], 16).map_err(|_| BadFG(x, i))?;
+                let r = (raw >> 8 & 0xF) as u8;
+                let g = (raw >> 4 & 0xF) as u8;
+                let b = (raw & 0xF) as u8;
+                Ok(Fg(Color([r << 4 | r, g << 4 | g, b << 4 | b])))
+            }
+            x if x.starts_with("!bg:") => {
+                let raw = u16::from_str_radix(&x[4..], 16).map_err(|_| BadBG(x, i))?;
+                let r = (raw >> 8 & 0xF) as u8;
+                let g = (raw >> 4 & 0xF) as u8;
+                let b = (raw & 0xF) as u8;
+                Ok(Bg(Color([r << 4 | r, g << 4 | g, b << 4 | b])))
+            }
+            x if x.starts_with("!khz:") => x[5..].parse().map(Khz).map_err(|_| BadKhz(x, i)),
+            x if x.starts_with('#') => Ok(Comment(x[1..].into())),
+            x => {
+                if x.contains('.') {
+                    x.parse().map(NumF).map_err(|_| UnknownToken(x, i))
+                } else {
+                    x.parse().map(NumI).map_err(|_| UnknownToken(x, i))
+                }
+            }
         })
         .collect()
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ParseError<'a> {
+    BadArr(&'a str, usize),
+    BadFG(&'a str, usize),
+    BadBG(&'a str, usize),
+    BadKhz(&'a str, usize),
+    UnknownToken(&'a str, usize),
+}
+
+impl<'a> std::fmt::Display for ParseError<'a> {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        use ParseError::*;
+        match *self {
+            BadArr(token, index) => write!(fmt, "Bad Array op: {}, index: {}", token, index),
+            BadFG(token, index) => write!(fmt, "Bad Foreground Color: {}, index: {}", token, index),
+            BadBG(token, index) => write!(fmt, "Bad Background Color: {}, index: {}", token, index),
+            BadKhz(token, index) => write!(fmt, "Bad Sample Rate: {}, index: {}", token, index),
+            UnknownToken(token, index) => write!(fmt, "Unknown Token: {}, index: {}", token, index),
+        }
+    }
 }
 
 impl std::fmt::Display for Cmd {
@@ -188,7 +416,15 @@ impl std::fmt::Display for Cmd {
         use Cmd::*;
         match *self {
             Var => write!(fmt, "t"),
-            Num(y) => write!(fmt, "{}", y),
+            NumF(y) => {
+                let buf = format!("{}", y);
+                if buf.contains('.') {
+                    write!(fmt, "{}", buf)
+                } else {
+                    write!(fmt, "{}.0", buf)
+                }
+            }
+            NumI(y) => write!(fmt, "{}", y),
             Add => write!(fmt, "+"),
             Sub => write!(fmt, "-"),
             Mul => write!(fmt, "*"),
@@ -208,6 +444,34 @@ impl std::fmt::Display for Cmd {
             MulF => write!(fmt, "*."),
             DivF => write!(fmt, "/."),
             ModF => write!(fmt, "%."),
+            Lt => write!(fmt, "<"),
+            Gt => write!(fmt, ">"),
+            Leq => write!(fmt, "<="),
+            Geq => write!(fmt, ">="),
+            Eq => write!(fmt, "=="),
+            Neq => write!(fmt, "!="),
+            Cond => write!(fmt, "?"),
+            Arr(size) => write!(fmt, "[{}", size),
+            Fg(col) => {
+                write!(
+                    fmt,
+                    "!fg:{:X}{:X}{:X}",
+                    col.0[0] & 0xF,
+                    col.0[1] & 0xF,
+                    col.0[2] & 0xF
+                )
+            }
+            Bg(col) => {
+                write!(
+                    fmt,
+                    "!bg:{:X}{:X}{:X}",
+                    col.0[0] & 0xF,
+                    col.0[1] & 0xF,
+                    col.0[2] & 0xF
+                )
+            }
+            Khz(khz) => write!(fmt, "!khz:{}", khz),
+            Comment(ref text) => write!(fmt, "#{}", text),
         }
     }
 }
@@ -217,205 +481,4 @@ pub fn format_beat(cmds: &[Cmd]) -> String {
         .map(|cmd| format!("{}", cmd))
         .collect::<Vec<_>>()
         .join(" ")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_eval() {
-        use Cmd::*;
-        assert_eq!(eval_beat(&[Var, Var, Add], 2.0), Ok(4.0));
-        assert_eq!(eval_beat(&[Var, Var, Mul], 3.0), Ok(9.0));
-        assert_eq!(eval_beat(&[Var, Var, Num(2.0), Mul, Sub], 3.0), Ok(-3.0));
-        assert_eq!(eval_beat(&[Num(1.0), Num(2.0), And], -1.0), Ok(0.0));
-        assert_eq!(eval_beat(&[Num(1.0), Num(2.0), Orr], -1.0), Ok(3.0));
-        assert_eq!(eval_beat(&[Num(2.0), Num(-1.0), Shl], 1.0), Ok(0.0));
-        assert_eq!(
-            eval_beat(&[Num(8.0), Var, Div, Num(2.0), Mod], 3.0),
-            Ok(0.0)
-        );
-        assert_eq!(eval_beat(&[Var, Num(-1.0), Xor], 7.0), Ok((!7i32) as f64));
-        assert_eq!(
-            eval_beat(&[Var, Num(1.0), Shr, Num(1.0), Shl], 3.0),
-            Ok(2.0)
-        );
-        assert_eq!(
-            eval_beat(&[Var, Num(1.0), Shr, Var, Orr, Tan, Num(128.0), Add], 1.0),
-            Ok(129.0)
-        );
-        assert_eq!(
-            eval_beat(&[Var, Num(1.0), Shr, Var, Orr, Tan, Num(128.0), AddF], 1.0),
-            Ok(129.5574077246549)
-        );
-        assert_eq!(
-            eval_beat(
-                &[Var, Cos, Var, Cos, MulF, Var, Sin, Var, Sin, MulF, AddF],
-                0.4,
-            ),
-            Ok(1.0)
-        );
-        assert_eq!(
-            eval_beat(
-                &[
-                    Var,
-                    Num(10.0),
-                    Div,
-                    Var,
-                    Num(2.0),
-                    Var,
-                    Num(10.0),
-                    Shr,
-                    Pow,
-                    Mul,
-                    Sin,
-                    Add,
-                    Sin,
-                    Num(64.0),
-                    Mul,
-                    Num(128.0),
-                    Add,
-                ],
-                3.0,
-            ),
-            Ok(128.0)
-        );
-        assert_eq!(
-            eval_beat(
-                &[
-                    Var,
-                    Num(10.0),
-                    DivF,
-                    Var,
-                    Num(2.0),
-                    Var,
-                    Num(10.0),
-                    Shr,
-                    Pow,
-                    MulF,
-                    Sin,
-                    AddF,
-                    Sin,
-                    Num(64.0),
-                    MulF,
-                    Num(128.0),
-                    AddF,
-                ],
-                3.0,
-            ),
-            Ok(155.324961718789)
-        );
-        assert_eq!(
-            eval_beat(&[Num(2.5), Num(1.2), ModF], 0.0),
-            Ok(0.10000000000000009)
-        );
-    }
-
-    #[test]
-    fn test_format() {
-        use Cmd::*;
-        assert_eq!(format_beat(&[Var, Var, Add]), "t t +");
-        assert_eq!(format_beat(&[Var, Var, Mul]), "t t *");
-        assert_eq!(format_beat(&[Var, Var, Num(2.0), Mul, Sub]), "t t 2 * -");
-        assert_eq!(format_beat(&[Num(1.0), Num(2.0), And]), "1 2 &");
-        assert_eq!(format_beat(&[Num(1.0), Num(2.0), Orr]), "1 2 |");
-        assert_eq!(
-            format_beat(&[Num(8.0), Var, Div, Num(2.0), Mod]),
-            "8 t / 2 %"
-        );
-        assert_eq!(format_beat(&[Var, Num(-1.0), Xor]), "t -1 ^");
-        assert_eq!(
-            format_beat(&[Var, Num(1.0), Shr, Num(1.0), Shl]),
-            "t 1 >> 1 <<"
-        );
-        assert_eq!(
-            format_beat(&[Var, Num(1.0), Shr, Var, Orr, Tan, Num(128.0), Add]),
-            "t 1 >> t | tan 128 +"
-        );
-        assert_eq!(
-            format_beat(&[Var, Cos, Var, Cos, Mul, Var, Sin, Var, Sin, Mul, Add]),
-            "t cos t cos * t sin t sin * +"
-        );
-        assert_eq!(
-            format_beat(
-                &[
-                    Var,
-                    Num(10.0),
-                    Div,
-                    Var,
-                    Num(2.0),
-                    Var,
-                    Num(10.0),
-                    Shr,
-                    Pow,
-                    Mul,
-                    Sin,
-                    Add,
-                    Sin,
-                    Num(64.0),
-                    Mul,
-                    Num(128.0),
-                    Add,
-                ],
-            ),
-            "t 10 / t 2 t 10 >> pow * sin + sin 64 * 128 +"
-        );
-        assert_eq!(format_beat(&[AddF, SubF, MulF, DivF]), "+. -. *. /.");
-        assert_eq!(format_beat(&[Num(2.5), Num(1.2), ModF]), "2.5 1.2 %.");
-    }
-
-    #[test]
-    fn test_parse() {
-        use Cmd::*;
-        assert_eq!(parse_beat("t t +"), Ok(vec![Var, Var, Add]));
-        assert_eq!(parse_beat("t t *"), Ok(vec![Var, Var, Mul]));
-        assert_eq!(
-            parse_beat("t t 2.0 * -"),
-            Ok(vec![Var, Var, Num(2.0), Mul, Sub])
-        );
-        assert_eq!(parse_beat("1 2 &"), Ok(vec![Num(1.0), Num(2.0), And]));
-        assert_eq!(parse_beat("1 2.0 |"), Ok(vec![Num(1.0), Num(2.0), Orr]));
-        assert_eq!(
-            parse_beat("8.0 t / 2.0 %"),
-            Ok(vec![Num(8.0), Var, Div, Num(2.0), Mod])
-        );
-        assert_eq!(parse_beat("t -1.0 ^"), Ok(vec![Var, Num(-1.0), Xor]));
-        assert_eq!(
-            parse_beat("t 1.0 >> 1.0 <<"),
-            Ok(vec![Var, Num(1.0), Shr, Num(1.0), Shl])
-        );
-        assert_eq!(
-            parse_beat("t 1 >> t | tan 128 +"),
-            Ok(vec![Var, Num(1.0), Shr, Var, Orr, Tan, Num(128.0), Add])
-        );
-        assert_eq!(
-            parse_beat("t cos t cos * t sin t sin * +"),
-            Ok(vec![Var, Cos, Var, Cos, Mul, Var, Sin, Var, Sin, Mul, Add])
-        );
-        assert_eq!(
-            parse_beat("t 10 / t 2 t 10 >> pow * sin + sin 64 * 128 +"),
-            Ok(vec![
-                Var,
-                Num(10.0),
-                Div,
-                Var,
-                Num(2.0),
-                Var,
-                Num(10.0),
-                Shr,
-                Pow,
-                Mul,
-                Sin,
-                Add,
-                Sin,
-                Num(64.0),
-                Mul,
-                Num(128.0),
-                Add,
-            ])
-        );
-        assert_eq!(parse_beat("+. -. *. /."), Ok(vec![AddF, SubF, MulF, DivF]));
-        assert_eq!(parse_beat("2.5 1.2 %."), Ok(vec![Num(2.5), Num(1.2), ModF]));
-    }
 }
