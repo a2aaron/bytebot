@@ -11,15 +11,15 @@ use Cmd::*;
 /// and the formula `t t 8 >> t >> 4 * consists of three units.
 /// In this case, `t`, `t 8 >>`, and `t 4 >>`
 
-/// A "t multiply" type of bytebeat consists of 
+/// A "t multiply" type of bytebeat consists of
 /// a `t * (expressions)` where `expressions` is
-/// any number of `t>>_` or `t` expressions 
+/// any number of `t>>_` or `t` expressions
 /// composed with a bitwise operator. For example,
 /// `t * ((t>>8) ^ (t>>3) | (t>>2))` is a t multiply bytebeat
 /// (In RPN: `t t 8 >> t 3 >> ^ t 2 >> | *`)
 pub fn random_t_multiply(goal_length: usize) -> Vec<Cmd> {
-    let t_like = random_t_like(goal_length/2);
-    let oscillator = random_oscillator(goal_length/2);
+    let t_like = random_t_like(goal_length / 2);
+    let oscillator = random_oscillator(goal_length / 2);
     compose(t_like, oscillator, Mul)
 }
 
@@ -69,7 +69,10 @@ fn test_compose() {
     let a = vec![Var, NumI(8), Shr];
     let b = vec![Var, NumI(1), Shr];
     let op = And;
-    assert_eq!(compose(a, b, op), vec![Var, NumI(8), Shr, Var, NumI(1), Shr, And]);
+    assert_eq!(
+        compose(a, b, op),
+        vec![Var, NumI(8), Shr, Var, NumI(1), Shr, And]
+    );
 }
 
 fn choose<T: Clone>(vec: Vec<T>) -> T {

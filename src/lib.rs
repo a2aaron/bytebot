@@ -103,7 +103,7 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, CompileError> {
             break;
         }
     }
-    
+
     match err_index {
         None => Ok(Program { cmds, bg, fg, khz }),
         Some(index) => Err(CompileError {
