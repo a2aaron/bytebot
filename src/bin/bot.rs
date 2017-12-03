@@ -31,8 +31,7 @@ fn main() {
     println!("Rendered!");
 
     println!("Uploading video to twitter...");
-    let upload = media::UploadBuilder::new(&video_data[..], media::media_types::video_mp4())
-        .category(media::MediaCategory::Video);
+    let upload = media::UploadBuilder::new(&video_data[..], media::media_types::video_mp4());
     let media_handle = core.run(upload.call(&auth, &handle)).unwrap();
     println!("Uploaded!");
 
