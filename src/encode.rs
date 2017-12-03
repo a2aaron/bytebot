@@ -31,6 +31,7 @@ impl Mul<u8> for Color {
     }
 }
 
+#[derive(Debug)]
 pub struct EncoderConfig {
     width: usize,
     height: usize,
@@ -115,6 +116,7 @@ impl EncoderConfig {
     }
 }
 
+#[derive(Debug)]
 pub struct Encoder {
     width: usize,
     height: usize,

@@ -45,6 +45,7 @@ pub enum Cmd {
     Comment(String),
 }
 
+#[derive(Debug)]
 pub struct Program {
     cmds: Vec<Cmd>,
     bg: Option<Color>,
