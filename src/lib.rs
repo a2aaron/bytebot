@@ -131,6 +131,16 @@ pub struct CompileError {
     error_kind: ErrorKind,
 }
 
+impl CompileError {
+    pub fn vec(&self) -> &Vec<Cmd> {
+        &self.cmds
+    }
+
+    pub fn error_kind(&self) -> &ErrorKind {
+        &self.error_kind
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum ErrorKind {
     UnderflowedStack { index: usize, stack_size: isize },

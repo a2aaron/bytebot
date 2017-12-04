@@ -10,8 +10,6 @@ macro_rules! test_invalid {
             use super::*;
             #[test]
             fn test_err_compile() {
-                // TODO: Find a better way to make the "empty" test
-                // not complain about unused imports?
                 #[allow(unused_imports)]
                 use Cmd::*;
                 let cmd = vec![$($cmd),*];
