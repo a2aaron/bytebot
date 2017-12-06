@@ -132,7 +132,11 @@ pub struct CompileError {
 }
 
 impl CompileError {
-    pub fn vec(&self) -> &Vec<Cmd> {
+    pub fn into_code(self) -> Vec<Cmd> {
+        self.cmds
+    }
+
+    pub fn as_code(&self) -> &[Cmd] {
         &self.cmds
     }
 
