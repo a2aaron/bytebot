@@ -4,12 +4,13 @@ macro_rules! test_invalid {
     (
         name: $name:ident,
         code: [$($cmd:expr),* $(,)*],
-        index: $index:expr,
+        err_kind: $err_kind:expr,
     ) => {
         mod $name {
             use super::*;
             #[test]
             fn test_err_compile() {
+                #[allow(unused_imports)]
                 use Cmd::*;
                 let cmd = vec![$($cmd),*];
                 let result = compile(cmd);
@@ -17,76 +18,76 @@ macro_rules! test_invalid {
             }
 
             #[test]
-            fn test_err_index() {
+            fn test_err_kind() {
+                #[allow(unused_imports)]
                 use Cmd::*;
+                use ErrorKind::*;
                 let cmd = vec![$($cmd),*];
                 let result = compile(cmd).err().unwrap();
-                assert_eq!(result.index, $index);
+                assert_eq!(result.error_kind, $err_kind);
             }
         }
     }
 }
 
 test_invalid! {
+    name: empty,
+    code: [],
+    err_kind: EmptyProgram,
+}
+
+test_invalid! {
     name: add_empty,
     code: [Add],
-    index: 0,
+    err_kind: UnderflowedStack { index: 0, stack_size: 0},
 }
 
 test_invalid! {
     name: add_small_stack,
     code: [Var, Add],
-    index: 1,
+    err_kind: UnderflowedStack { index: 1, stack_size: 1},
 }
 
 test_invalid! {
     name: cond_small_stack,
     code: [Var, Var, Cond],
-    index: 2,
+    err_kind: UnderflowedStack { index: 2, stack_size: 2},
 }
 
 test_invalid! {
     name: empty_arr_is_err,
     code: [Arr(0)],
-    index: 0,
+    err_kind: UnderflowedStack { index: 0, stack_size: 0},
 }
 
 test_invalid! {
     name: arr_stack_too_small,
     code: [Var, Arr(1)],
-    index: 1,
+    err_kind: UnderflowedStack { index: 1, stack_size: 1},
 }
 
 test_invalid! {
     name: arr_stack_too_small2,
     code: [NumI(1), NumI(2), NumI(3), Arr(3)],
-    index: 3,
+    err_kind: UnderflowedStack { index: 3, stack_size: 3},
 }
 
 test_invalid! {
     name: sin_empty,
     code: [Sin],
-    index: 0,
+    err_kind: UnderflowedStack { index: 0, stack_size: 0},
 }
 
 test_invalid! {
     name: should_not_dip_below_zero,
     code: [Var, Var, Var, Add, Add, Add, Var],
-    index: 5,
+    err_kind: UnderflowedStack { index: 5, stack_size: 1},
 }
 
-#[test]
-fn test_comments_ok() {
-    use Cmd::*;
-    // These should always be valid even on an empty stack
-    // !khz:8 !bg:000 !fg:000 #Hello
-    let result = compile(vec![
-        Khz(8),
-        Bg(Color([0, 0, 0])),
-        Fg(Color([0, 0, 0])),
-        Comment("Hello".into()),
-    ]);
-    assert!(result.is_ok());
+test_invalid! {
+    name: need_at_one_value_on_stack,
+    code: [Khz(8), Bg(Color([0, 0, 0])), Fg(Color([0, 0, 0])), Comment("Hello".into())],
+    err_kind: EmptyProgram,
 }
 
 macro_rules! test_beat {
@@ -458,6 +459,7 @@ fn test_metadata() {
         Khz(11),
         Fg(Color([1, 0, 0])),
         Bg(Color([0, 1, 1])),
+        NumI(0), // Required, empty programs are invalid.
     ];
     let prog = compile(code).unwrap();
     assert_eq!(prog.hz(), Some(11_000));

@@ -80,9 +80,9 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, CompileError> {
     }
     // Validate the bytebeat by checking that the stack does not get popped when empty
     let mut stack_size = 0 as isize;
-    let mut err_index = None;
+    let mut error_kind = None;
     for (index, cmd) in cmds.iter().enumerate() {
-        stack_size += match *cmd {
+        let change = match *cmd {
             Var | NumF(_) | NumI(_) | Hex(_) => 1,
             Fg(_) | Bg(_) | Khz(_) | Comment(_) => continue,
             // These all pop 1 value off the stack and push 1
@@ -100,18 +100,22 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, CompileError> {
             Pow | AddF | SubF | MulF | DivF | ModF => -1,
             Lt | Gt | Leq | Geq | Eq | Neq => -1,
         };
-        if stack_size <= 0 {
-            err_index = Some(index);
+        if stack_size + change <= 0 {
+            error_kind = Some(ErrorKind::UnderflowedStack { index, stack_size });
             break;
         }
+        // Do this after the if statement since we want to record the stack_size
+        // before applying the effect of the operator.
+        stack_size += change;
     }
-    match err_index {
+
+    if stack_size == 0 && error_kind.is_none() {
+        error_kind = Some(ErrorKind::EmptyProgram);
+    }
+
+    match error_kind {
         None => Ok(Program { cmds, bg, fg, khz }),
-        Some(index) => Err(CompileError {
-            cmds,
-            index,
-            stack_size,
-        }),
+        Some(error_kind) => Err(CompileError { cmds, error_kind }),
     }
 }
 
@@ -121,22 +125,47 @@ impl std::fmt::Display for Program {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct CompileError {
     cmds: Vec<Cmd>,
-    index: usize,
-    stack_size: isize,
+    error_kind: ErrorKind,
+}
+
+impl CompileError {
+    pub fn into_code(self) -> Vec<Cmd> {
+        self.cmds
+    }
+
+    pub fn as_code(&self) -> &[Cmd] {
+        &self.cmds
+    }
+
+    pub fn error_kind(&self) -> &ErrorKind {
+        &self.error_kind
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ErrorKind {
+    UnderflowedStack { index: usize, stack_size: isize },
+    EmptyProgram,
 }
 
 impl<'a> std::fmt::Display for CompileError {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            fmt,
-            "Attempt to pop beyond stack size. instruction: {} index: {}, size of stack {}",
-            self.cmds[self.index],
-            self.index,
-            self.stack_size
-        )
+        use ErrorKind::*;
+        match self.error_kind {
+            UnderflowedStack { index, stack_size } => {
+                write!(
+                    fmt,
+                    "Attempt to pop beyond stack size. instruction: {} index: {}, size of stack {}",
+                    self.cmds[index],
+                    index,
+                    stack_size
+                )
+            }
+            EmptyProgram => write!(fmt, "Program is empty: {:?}", self.cmds),
+        }
     }
 }
 
