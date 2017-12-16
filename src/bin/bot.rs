@@ -38,7 +38,7 @@ fn main() {
     println!("Posting tweet...");
     core.run(
         DraftTweet::new(text)
-            .media_ids(&[media_handle.media_id][..])
+            .media_ids(&[media_handle.id][..])
             .send(&auth, &handle),
     ).unwrap();
     println!("Posted!");

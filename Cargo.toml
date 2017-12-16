@@ -5,5 +5,5 @@ authors = ["Aaron Kofsky <a2aarontothe2@gmail.com>", "Caleb Jones <code@calebjon
 
 [dependencies]
 dotenv = "0.10"
-egg-mode = { git = "https://github.com/QuietMisdreavus/twitter-rs.git" }
+egg-mode = "0.12.0"
 tokio-core = "0.1"
