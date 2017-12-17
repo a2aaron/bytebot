@@ -92,7 +92,7 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, CompileError> {
             // then pops x more values off the stack. Finally, it
             // pushes one value back onto the stack based on the index
             // Thus the net effect of Arr is to reduce the stack size by x.
-            Arr(x) => -(x as isize),
+            Arr(x) => -saturating_as_isize(x),
             Cond => -2,
             // Split these into multiple branches to make rustfmt stop complaining
             Add | Sub | Mul | Div | Mod => -1,
@@ -116,6 +116,14 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, CompileError> {
     match error_kind {
         None => Ok(Program { cmds, bg, fg, khz }),
         Some(error_kind) => Err(CompileError { cmds, error_kind }),
+    }
+}
+
+fn saturating_as_isize(num: usize) -> isize {
+    if num > isize::max_value() as usize {
+        isize::max_value()
+    } else {
+        num as isize
     }
 }
 

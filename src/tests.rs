@@ -90,6 +90,18 @@ test_invalid! {
     err_kind: EmptyProgram,
 }
 
+#[test]
+fn test_really_big_arrays_invalid() {
+    // equal to i64::max_value() + 1
+    // a cast to i64 would make it equal to 9223372036854775807
+    let code = parse_beat("[9223372036854775808").unwrap();
+    assert!(compile(code).is_err());
+    // equal to i64::max_value() + 2\
+    // a cast i64 would make it equal to -9223372036854775808
+    let code = parse_beat("[9223372036854775809").unwrap();
+    assert!(compile(code).is_err());
+}
+
 macro_rules! test_beat {
     (
         name: $name:ident,
