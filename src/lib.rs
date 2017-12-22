@@ -5,6 +5,8 @@ pub mod random;
 
 use encode::Color;
 
+#[cfg(test)]
+mod tests;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Cmd {
