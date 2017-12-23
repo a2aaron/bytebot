@@ -11,11 +11,15 @@ def gencol():
     x = random.random()
     return hsv_to_rgb(x, 0.8, 0.8), hsv_to_rgb(x + 0.5, 0.8, 0.8)
 
-
 for line in sys.stdin.readlines():
     a, b = gencol()
-    print('{code}\n!fg:{fg} !bg:{bg} #bbcurated'.format(
+    comment = ""
+    if len(sys.argv) >= 2:
+        comment = sys.argv[1]
+
+    print('{code}\n!fg:{fg} !bg:{bg} {comment}'.format(
         code=line.strip(),
         fg=fmtcol(a),
         bg=fmtcol(b),
+        comment=comment
     ))

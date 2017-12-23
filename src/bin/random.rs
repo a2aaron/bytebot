@@ -11,14 +11,9 @@ fn main() {
 }
 
 fn gen_beat(min: usize, max: usize) -> bytebeat::Program {
-    use bytebeat::Cmd::*;
     loop {
         let length = rand::thread_rng().gen_range::<usize>(min, max);
-        let mut code = random::random_t_multiply(length);
-        code.push(Khz(8));
-        code.push(Fg(random::random_color()));
-        code.push(Bg(random::random_color()));
-        code.push(Comment("bbrandom".to_string()));
+        let code = random::random_t_multiply(length);
         let code = bytebeat::compile(code).unwrap();
         let buf: Vec<_> = (0..5 * 8000)
             .map(|t| bytebeat::eval_beat(&code, t))
