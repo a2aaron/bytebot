@@ -7,3 +7,4 @@ authors = ["Aaron Kofsky <a2aarontothe2@gmail.com>", "Caleb Jones <code@calebjon
 dotenv = "0.10"
 egg-mode = "0.12.0"
 tokio-core = "0.1"
+rand = "*"

@@ -5,3 +5,4 @@ Cargo.lock
 .env
 .post-queue
 .post-queuee
+beats.log

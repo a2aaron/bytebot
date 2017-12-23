@@ -96,7 +96,7 @@ fn test_really_big_arrays_invalid() {
     // a cast to i64 would make it equal to 9223372036854775807
     let code = parse_beat("[9223372036854775808").unwrap();
     assert!(compile(code).is_err());
-    // equal to i64::max_value() + 2\
+    // equal to i64::max_value() + 2
     // a cast i64 would make it equal to -9223372036854775808
     let code = parse_beat("[9223372036854775809").unwrap();
     assert!(compile(code).is_err());

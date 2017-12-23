@@ -1,5 +1,7 @@
 extern crate bytebeat;
+
 use std::io::{Read, Write};
+
 
 fn main() {
     let mut code = String::new();
