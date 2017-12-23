@@ -1,5 +1,6 @@
 use rand::{self, Rng};
 use super::Cmd;
+use encode::Color;
 use Cmd::*;
 
 /// Definitions:
@@ -24,6 +25,15 @@ pub fn random_t_multiply(goal_length: usize) -> Vec<Cmd> {
     let t_like = random_t_like(goal_length / 2);
     let oscillator = random_oscillator(goal_length / 2);
     compose(t_like, oscillator, Mul)
+}
+
+
+/// Return a random color
+pub fn random_color() -> Color {
+    let r = rand::thread_rng().gen_range(0, 255);
+    let g = rand::thread_rng().gen_range(0, 255);
+    let b = rand::thread_rng().gen_range(0, 255);
+    Color([r, g, b])
 }
 
 /// Returns a "t like" bytebeat unit with `length` amount of
