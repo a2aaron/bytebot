@@ -6,3 +6,4 @@ Cargo.lock
 .post-queue
 .post-queuee
 beats.log
+bytebot-rpn/target/

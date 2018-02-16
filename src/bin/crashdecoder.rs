@@ -1,7 +1,7 @@
-extern crate bytebeat;
+extern crate bytebot_rpn as rpn;
 use std::io::Read;
 
-use bytebeat::Val;
+use rpn::Val;
 
 fn main() {
     let mut data = Vec::new();
@@ -18,13 +18,13 @@ fn main() {
     };
     let program = std::str::from_utf8(&data[9..]).unwrap();
     println!("code: \"{}\" at time: {:?}", program, time);
-    match bytebeat::parse_beat(program) {
+    match rpn::parse_beat(program) {
         Ok(program) => {
             println!("parsed: {:?}", program);
-            match bytebeat::compile(program) {
+            match rpn::compile(program) {
                 Ok(program) => {
                     println!("compiled: {:?}", program);
-                    let value = bytebeat::eval_beat(&program, time);
+                    let value = rpn::eval_beat(&program, time);
                     println!("evaluted: {:?}", value);
                 }
                 Err(err) => println!("Could not compile: {}", err),

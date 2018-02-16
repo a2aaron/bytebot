@@ -1,11 +1,24 @@
 use std::fs::{self, File};
 use std::process;
 use std::path::PathBuf;
-use std::ops::Mul;
 use std::io::{self, BufWriter, Write};
+use std::ops::Mul;
+
+use rpn::Program;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Color(pub [u8; 3]);
+
+impl Mul<u8> for Color {
+    type Output = Color;
+    fn mul(self, rhs: u8) -> Color {
+        let Color(lhs) = self;
+        let r = lhs[0] as u16 * rhs as u16;
+        let g = lhs[1] as u16 * rhs as u16;
+        let b = lhs[2] as u16 * rhs as u16;
+        Color([(r >> 8) as u8, (g >> 8) as u8, (b >> 8) as u8])
+    }
+}
 
 pub fn write_ppm<W: Write>(
     out: &mut W,
@@ -18,17 +31,6 @@ pub fn write_ppm<W: Write>(
         out.write(&pix.0[..])?;
     }
     Ok(())
-}
-
-impl Mul<u8> for Color {
-    type Output = Color;
-    fn mul(self, rhs: u8) -> Color {
-        let Color(lhs) = self;
-        let r = lhs[0] as u16 * rhs as u16;
-        let g = lhs[1] as u16 * rhs as u16;
-        let b = lhs[2] as u16 * rhs as u16;
-        Color([(r >> 8) as u8, (g >> 8) as u8, (b >> 8) as u8])
-    }
 }
 
 #[derive(Debug)]
@@ -165,5 +167,36 @@ impl Encoder {
         fs::remove_file(self.audio_path)?;
         fs::remove_file(self.video_path)?;
         Ok(())
+    }
+}
+
+pub trait BytebeatProgram {
+    // @Todo: Should these be Result<Option<Color>, _>?
+    fn bg(&self) -> Option<Color>;
+    fn fg(&self) -> Option<Color>;
+    fn hz(&self) -> Option<u32>;
+}
+
+fn hex_to_color(text: &str) -> Result<Color, ()> {
+    let raw = u16::from_str_radix(text, 16).map_err(|_| ())?;
+    let r = (raw >> 8 & 0xF) as u8;
+    let g = (raw >> 4 & 0xF) as u8;
+    let b = (raw & 0xF) as u8;
+    Ok(Color([r << 4 | r, g << 4 | g, b << 4 | b]))
+}
+
+impl BytebeatProgram for Program {
+    fn bg(&self) -> Option<Color> {
+        self.meta("bg").and_then(|x| hex_to_color(x).ok())
+    }
+
+    fn fg(&self) -> Option<Color> {
+        self.meta("fg").and_then(|x| hex_to_color(x).ok())
+    }
+
+    fn hz(&self) -> Option<u32> {
+        self.meta("khz")
+            .and_then(|text| text.parse().ok())
+            .map(|x: u32| x * 1000)
     }
 }

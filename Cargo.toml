@@ -8,3 +8,4 @@ dotenv = "0.10"
 egg-mode = "0.12.0"
 tokio-core = "0.1"
 rand = "*"
+bytebot-rpn = { path = "bytebot-rpn", version = "0.1" }

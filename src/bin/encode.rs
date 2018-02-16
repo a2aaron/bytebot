@@ -1,4 +1,4 @@
-extern crate bytebeat;
+extern crate bytebot_rpn as rpn;
 
 use std::io::Read;
 
@@ -10,8 +10,8 @@ fn main() {
         println!("Enter a bytebeat command and then press Ctrl-D:");
         let mut text = String::new();
         std::io::stdin().read_to_string(&mut text).unwrap();
-        match bytebeat::parse_beat(&text) {
-            Ok(code) => match bytebeat::compile(code) {
+        match rpn::parse_beat(&text) {
+            Ok(code) => match rpn::compile(code) {
                 Ok(code) => code,
                 Err(compile_error) => {
                     eprintln!("{}", compile_error);
