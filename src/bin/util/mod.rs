@@ -1,7 +1,7 @@
 extern crate bytebeat;
 
 use bytebeat::Program;
-use bytebeat::encode::{EncoderConfig, Color};
+use bytebeat::encode::{Color, EncoderConfig};
 
 const WIDTH: usize = 640;
 const HEIGHT: usize = 360;
