@@ -1,7 +1,10 @@
-use rand::{self, Rng};
-use super::Cmd;
-use encode::Color;
-use Cmd::*;
+extern crate bytebot_rpn as rpn;
+extern crate rand;
+
+use rand::Rng;
+use rpn::Cmd;
+use rpn::Color;
+use rpn::Cmd::*;
 
 /// Definitions:
 /// A "Bytebeat Unit" is a basic unit of a formula, typically

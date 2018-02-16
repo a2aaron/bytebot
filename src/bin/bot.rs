@@ -1,4 +1,4 @@
-extern crate bytebeat;
+extern crate bytebot_rpn as rpn;
 extern crate dotenv;
 extern crate egg_mode;
 extern crate tokio_core;
@@ -6,7 +6,7 @@ extern crate tokio_core;
 use std::io::{self, Read};
 use std::env;
 
-use bytebeat::Program;
+use rpn::Program;
 use dotenv::dotenv;
 use egg_mode::{media, Token, KeyPair};
 use egg_mode::tweet::DraftTweet;
@@ -48,8 +48,8 @@ fn generate_beat() -> (Program, String) {
     println!("Reading a beat from stdin:");
     let mut buf = String::new();
     std::io::stdin().read_to_string(&mut buf).unwrap();
-    let cmds = bytebeat::parse_beat(&buf).unwrap();
-    (bytebeat::compile(cmds).unwrap(), buf)
+    let cmds = rpn::parse_beat(&buf).unwrap();
+    (rpn::compile(cmds).unwrap(), buf)
 }
 
 fn encode_video(code: &Program) -> io::Result<Vec<u8>> {

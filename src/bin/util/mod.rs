@@ -1,7 +1,9 @@
+extern crate bytebot_rpn as rpn;
 extern crate bytebeat;
 
-use bytebeat::Program;
-use bytebeat::encode::{EncoderConfig, Color};
+use rpn::Program;
+use self::bytebeat::encode::EncoderConfig;
+use rpn::Color;
 
 const WIDTH: usize = 640;
 const HEIGHT: usize = 360;
@@ -19,7 +21,7 @@ pub fn generate_video(code: &Program, fname: &str) {
     let data = {
         let mut data = vec![0; size];
         for i in 0..size {
-            data[i] = bytebeat::eval_beat(&code, i as f64).into();
+            data[i] = rpn::eval_beat(&code, i as f64).into();
         }
         data
     };

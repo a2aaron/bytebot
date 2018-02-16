@@ -1,11 +1,11 @@
+extern crate bytebot_rpn as rpn;
+
 use std::fs::{self, File};
 use std::process;
 use std::path::PathBuf;
-use std::ops::Mul;
 use std::io::{self, Write, BufWriter};
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Color(pub [u8; 3]);
+use self::rpn::Color;
 
 pub fn write_ppm<W: Write>(
     out: &mut W,
@@ -18,17 +18,6 @@ pub fn write_ppm<W: Write>(
         out.write(&pix.0[..])?;
     }
     Ok(())
-}
-
-impl Mul<u8> for Color {
-    type Output = Color;
-    fn mul(self, rhs: u8) -> Color {
-        let Color(lhs) = self;
-        let r = lhs[0] as u16 * rhs as u16;
-        let g = lhs[1] as u16 * rhs as u16;
-        let b = lhs[2] as u16 * rhs as u16;
-        Color([(r >> 8) as u8, (g >> 8) as u8, (b >> 8) as u8])
-    }
 }
 
 #[derive(Debug)]
