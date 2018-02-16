@@ -27,7 +27,6 @@ pub fn random_t_multiply(goal_length: usize) -> Vec<Cmd> {
     compose(t_like, oscillator, Mul)
 }
 
-
 /// Return a random color
 pub fn random_color() -> Color {
     let r = rand::thread_rng().gen_range(0, 255);

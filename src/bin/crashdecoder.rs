@@ -8,9 +8,9 @@ fn main() {
     let _ = std::io::stdin().read_to_end(&mut data);
 
     let time_kind = data[0];
-    let raw_num = (data[1] as u64) | (data[2] as u64) << 08 | (data[3] as u64) << 16 |
-        (data[4] as u64) << 24 | (data[5] as u64) << 32 |
-        (data[6] as u64) << 40 | (data[7] as u64) << 48 | (data[8] as u64) << 56;
+    let raw_num = (data[1] as u64) | (data[2] as u64) << 08 | (data[3] as u64) << 16
+        | (data[4] as u64) << 24 | (data[5] as u64) << 32 | (data[6] as u64) << 40
+        | (data[7] as u64) << 48 | (data[8] as u64) << 56;
     let time = if time_kind == 0 {
         Val::I(raw_num as i64)
     } else {

@@ -2,7 +2,7 @@ use std::fs::{self, File};
 use std::process;
 use std::path::PathBuf;
 use std::ops::Mul;
-use std::io::{self, Write, BufWriter};
+use std::io::{self, BufWriter, Write};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Color(pub [u8; 3]);
@@ -92,12 +92,10 @@ impl EncoderConfig {
         let audio_path = self.audio_path.ok_or("audio path not set")?;
         let video_path = self.video_path.ok_or("video path not set")?;
 
-        let audio_file = BufWriter::new(File::create(&audio_path).map_err(
-            |_| "could not create audio file",
-        )?);
-        let video_file = BufWriter::new(File::create(&video_path).map_err(
-            |_| "could not create video file",
-        )?);
+        let audio_file =
+            BufWriter::new(File::create(&audio_path).map_err(|_| "could not create audio file")?);
+        let video_file =
+            BufWriter::new(File::create(&video_path).map_err(|_| "could not create video file")?);
 
         let (out_width, out_height) = self.out_dim.unwrap_or((self.width, self.height));
 

@@ -165,15 +165,11 @@ impl<'a> std::fmt::Display for CompileError {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         use ErrorKind::*;
         match self.error_kind {
-            UnderflowedStack { index, stack_size } => {
-                write!(
-                    fmt,
-                    "Attempt to pop beyond stack size. instruction: {} index: {}, size of stack {}",
-                    self.cmds[index],
-                    index,
-                    stack_size
-                )
-            }
+            UnderflowedStack { index, stack_size } => write!(
+                fmt,
+                "Attempt to pop beyond stack size. instruction: {} index: {}, size of stack {}",
+                self.cmds[index], index, stack_size
+            ),
             EmptyProgram => write!(fmt, "Program is empty: {:?}", self.cmds),
         }
     }
@@ -187,7 +183,11 @@ pub enum Val {
 
 impl From<bool> for Val {
     fn from(b: bool) -> Val {
-        if b { Val::I(1) } else { Val::I(0) }
+        if b {
+            Val::I(1)
+        } else {
+            Val::I(0)
+        }
     }
 }
 
@@ -300,26 +300,20 @@ pub fn eval_beat<T: Into<Val>>(program: &Program, t: T) -> Val {
             Add => stack_op!(stack { a: i64, b: i64 } => a.wrapping_add(b)),
             Sub => stack_op!(stack { a: i64, b: i64 } => a.wrapping_sub(b)),
             Mul => stack_op!(stack { a: i64, b: i64 } => a.wrapping_mul(b)),
-            Div => {
-                stack_op!(stack { a: i64, b: i64 } => {
+            Div => stack_op!(stack { a: i64, b: i64 } => {
                     if b == 0 { 0 } else { a.wrapping_div(b) }
-                })
-            }
-            Mod => {
-                stack_op!(stack { a: i64, b: i64 } => {
+                }),
+            Mod => stack_op!(stack { a: i64, b: i64 } => {
                     if b == 0 { 0 } else { a.wrapping_rem(b) }
-                })
-            }
+                }),
             Shl => stack_op!(stack { a: i64, b: i64 } => a << (((b % 64) + 64) % 64)),
-            Shr => {
-                stack_op!(stack { a: i64, b: i64 } => {
+            Shr => stack_op!(stack { a: i64, b: i64 } => {
                     let mut b = b % 64;
                     if b < 0 {
                         b += 64;
                     }
                     a >> b
-                })
-            }
+                }),
             And => stack_op!(stack { a: i64, b: i64 } => a & b),
             Orr => stack_op!(stack { a: i64, b: i64 } => a | b),
             Xor => stack_op!(stack { a: i64, b: i64 } => a ^ b),
@@ -330,27 +324,21 @@ pub fn eval_beat<T: Into<Val>>(program: &Program, t: T) -> Val {
             AddF => stack_op!(stack { a: f64, b: f64 } => a + b),
             SubF => stack_op!(stack { a: f64, b: f64 } => a - b),
             MulF => stack_op!(stack { a: f64, b: f64 } => a * b),
-            DivF => {
-                stack_op!(stack { a: f64, b: f64 } => {
+            DivF => stack_op!(stack { a: f64, b: f64 } => {
                     if b == 0.0 { 0.0 } else { a / b }
-                })
-            }
-            ModF => {
-                stack_op!(stack { a: f64, b: f64 } => {
+                }),
+            ModF => stack_op!(stack { a: f64, b: f64 } => {
                     if b == 0.0 { 0.0 } else { a % b }
-                })
-            }
+                }),
             Lt => stack_op!(stack { a: Val, b: Val } => a < b),
             Gt => stack_op!(stack { a: Val, b: Val } => a > b),
             Leq => stack_op!(stack { a: Val, b: Val } => a <= b),
             Geq => stack_op!(stack { a: Val, b: Val } => a >= b),
             Eq => stack_op!(stack { a: Val, b: Val } => a == b),
             Neq => stack_op!(stack { a: Val, b: Val } => a != b),
-            Cond => {
-                stack_op!(stack { a: Val, b: Val, cond: bool } => {
+            Cond => stack_op!(stack { a: Val, b: Val, cond: bool } => {
                     if cond { a } else { b }
-                })
-            }
+                }),
             Arr(0) => stack.push(0.into()),
             Arr(size) => {
                 let index: i64 = stack.pop().unwrap().into();
@@ -420,11 +408,9 @@ pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, ParseError> {
             }
             x if x.starts_with("!khz:") => x[5..].parse().map(Khz).map_err(|_| BadKhz(x, i)),
             x if x.starts_with('#') => Ok(Comment(x[1..].into())),
-            x if x.starts_with("0x") => {
-                i64::from_str_radix(&x[2..], 16).map(Hex).map_err(|_| {
-                    UnknownToken(x, i)
-                })
-            }
+            x if x.starts_with("0x") => i64::from_str_radix(&x[2..], 16)
+                .map(Hex)
+                .map_err(|_| UnknownToken(x, i)),
             x => {
                 if x.contains('.') {
                     x.parse().map(NumF).map_err(|_| UnknownToken(x, i))
@@ -500,24 +486,20 @@ impl std::fmt::Display for Cmd {
             Neq => write!(fmt, "!="),
             Cond => write!(fmt, "?"),
             Arr(size) => write!(fmt, "[{}", size),
-            Fg(col) => {
-                write!(
-                    fmt,
-                    "!fg:{:X}{:X}{:X}",
-                    col.0[0] & 0xF,
-                    col.0[1] & 0xF,
-                    col.0[2] & 0xF
-                )
-            }
-            Bg(col) => {
-                write!(
-                    fmt,
-                    "!bg:{:X}{:X}{:X}",
-                    col.0[0] & 0xF,
-                    col.0[1] & 0xF,
-                    col.0[2] & 0xF
-                )
-            }
+            Fg(col) => write!(
+                fmt,
+                "!fg:{:X}{:X}{:X}",
+                col.0[0] & 0xF,
+                col.0[1] & 0xF,
+                col.0[2] & 0xF
+            ),
+            Bg(col) => write!(
+                fmt,
+                "!bg:{:X}{:X}{:X}",
+                col.0[0] & 0xF,
+                col.0[1] & 0xF,
+                col.0[2] & 0xF
+            ),
             Khz(khz) => write!(fmt, "!khz:{}", khz),
             Comment(ref text) => write!(fmt, "#{}", text),
         }
