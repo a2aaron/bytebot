@@ -8,12 +8,11 @@ use std::env;
 
 use rpn::Program;
 use dotenv::dotenv;
-use egg_mode::{media, Token, KeyPair};
+use egg_mode::{media, KeyPair, Token};
 use egg_mode::tweet::DraftTweet;
 use tokio_core::reactor::Core;
 
 mod util;
-
 
 fn main() {
     dotenv().ok();

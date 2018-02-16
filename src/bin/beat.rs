@@ -2,7 +2,6 @@ extern crate bytebot_rpn as rpn;
 
 use std::io::{Read, Write};
 
-
 fn main() {
     let mut code = String::new();
     std::io::stdin().read_to_string(&mut code).unwrap();

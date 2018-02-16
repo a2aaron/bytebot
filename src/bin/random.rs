@@ -1,5 +1,5 @@
-extern crate bytebot_rpn as rpn;
 extern crate bytebeat;
+extern crate bytebot_rpn as rpn;
 extern crate rand;
 
 use rand::Rng;
@@ -16,9 +16,7 @@ fn gen_beat(min: usize, max: usize) -> rpn::Program {
         let length = rand::thread_rng().gen_range::<usize>(min, max);
         let code = random::random_t_multiply(length);
         let code = rpn::compile(code).unwrap();
-        let buf: Vec<_> = (0..5 * 8000)
-            .map(|t| rpn::eval_beat(&code, t))
-            .collect();
+        let buf: Vec<_> = (0..5 * 8000).map(|t| rpn::eval_beat(&code, t)).collect();
 
         let is_silent = buf.iter().all(|&x| x == buf[0]);
 
