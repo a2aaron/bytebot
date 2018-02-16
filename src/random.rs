@@ -2,9 +2,11 @@ extern crate bytebot_rpn as rpn;
 extern crate rand;
 
 use rand::Rng;
+
 use rpn::Cmd;
-use rpn::Color;
 use rpn::Cmd::*;
+
+use encode::Color;
 
 /// Definitions:
 /// A "Bytebeat Unit" is a basic unit of a formula, typically
@@ -29,7 +31,6 @@ pub fn random_t_multiply(goal_length: usize) -> Vec<Cmd> {
     let oscillator = random_oscillator(goal_length / 2);
     compose(t_like, oscillator, Mul)
 }
-
 
 /// Return a random color
 pub fn random_color() -> Color {

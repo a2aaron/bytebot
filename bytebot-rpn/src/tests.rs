@@ -86,7 +86,7 @@ test_invalid! {
 
 test_invalid! {
     name: need_at_one_value_on_stack,
-    code: [Khz(8), Bg(Color([0, 0, 0])), Fg(Color([0, 0, 0])), Comment("Hello".into())],
+    code: [Meta("khz".into(), "8".into()), Meta("bg".into(), "000".into()), Meta("fg".into(), "000".into()), Comment("Hello".into())],
     err_kind: EmptyProgram,
 }
 
@@ -443,14 +443,14 @@ test_beat! {
 test_beat! {
     name: color,
     text: "!fg:F00 !bg:00F 0",
-    code: [Fg(Color([0xFF, 0x00, 0x00])), Bg(Color([0x00, 0x00, 0xFF])), NumI(0)],
+    code: [Meta("fg".into(), "F00".into()), Meta("bg".into(), "00F".into()), NumI(0)],
     eval: { 0 => 0 },
 }
 
 test_beat! {
     name: khz,
     text: "!khz:8 8000",
-    code: [Khz(8), NumI(8000)],
+    code: [Meta("khz".into(), "8".into()), NumI(8000)],
     eval: { 0 => 8000 },
 }
 
@@ -465,18 +465,18 @@ test_beat! {
 fn test_metadata() {
     use Cmd::*;
     let code = vec![
-        Fg(Color([0, 0, 0])),
-        Bg(Color([0, 0, 0])),
-        Khz(8),
-        Khz(11),
-        Fg(Color([1, 0, 0])),
-        Bg(Color([0, 1, 1])),
+        Meta("fg".into(), "000".into()),
+        Meta("bg".into(), "000".into()),
+        Meta("khz".into(), "8".into()),
+        Meta("khz".into(), "11".into()),
+        Meta("fg".into(), "100".into()),
+        Meta("bg".into(), "011".into()),
         NumI(0), // Required, empty programs are invalid.
     ];
     let prog = compile(code).unwrap();
-    assert_eq!(prog.hz(), Some(11_000));
-    assert_eq!(prog.fg(), Some(Color([1, 0, 0])));
-    assert_eq!(prog.bg(), Some(Color([0, 1, 1])));
+    assert_eq!(prog.meta("khz"), Some("11"));
+    assert_eq!(prog.meta("fg"), Some("100"));
+    assert_eq!(prog.meta("bg"), Some("011"));
 }
 
 test_beat! {

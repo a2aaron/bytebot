@@ -1,9 +1,8 @@
-extern crate bytebot_rpn as rpn;
 extern crate bytebeat;
+extern crate bytebot_rpn as rpn;
 
 use rpn::Program;
-use self::bytebeat::encode::EncoderConfig;
-use rpn::Color;
+use self::bytebeat::encode::{BytebeatProgram, Color, EncoderConfig};
 
 const WIDTH: usize = 640;
 const HEIGHT: usize = 360;

@@ -1,23 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use std::ops::Mul;
-
-// TODO: This should move back to encode.rs once we have built some
-// sort of shim between the two.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Color(pub [u8; 3]);
-
-impl Mul<u8> for Color {
-    type Output = Color;
-    fn mul(self, rhs: u8) -> Color {
-        let Color(lhs) = self;
-        let r = lhs[0] as u16 * rhs as u16;
-        let g = lhs[1] as u16 * rhs as u16;
-        let b = lhs[2] as u16 * rhs as u16;
-        Color([(r >> 8) as u8, (g >> 8) as u8, (b >> 8) as u8])
-    }
-}
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Cmd {
@@ -52,43 +36,34 @@ pub enum Cmd {
     Neq,
     Cond,
     Arr(usize),
-    Fg(Color),
-    Bg(Color),
-    Khz(u8),
+    Meta(String, String),
     Comment(String),
 }
 
 #[derive(Debug)]
 pub struct Program {
     cmds: Vec<Cmd>,
-    bg: Option<Color>,
-    fg: Option<Color>,
-    khz: Option<u8>,
+    meta: HashMap<String, Vec<String>>,
 }
 
 impl Program {
-    pub fn bg(&self) -> Option<Color> {
-        self.bg
+    pub fn meta(&self, name: &str) -> Option<&str> {
+        self.meta.get(name).and_then(|xs| xs.last()).map(|x| &x[..])
     }
 
-    pub fn fg(&self) -> Option<Color> {
-        self.fg
-    }
-
-    pub fn hz(&self) -> Option<u32> {
-        self.khz.map(|x| x as u32 * 1000)
+    pub fn all_meta(&self, name: &str) -> Vec<String> {
+        self.meta.get(name).cloned().unwrap_or_default()
     }
 }
 
 pub fn compile(cmds: Vec<Cmd>) -> Result<Program, CompileError> {
     use Cmd::*;
-    let (mut bg, mut fg, mut khz) = (None, None, None);
+    let mut meta = HashMap::new();
     for cmd in &cmds {
-        match *cmd {
-            Bg(col) => bg = Some(col),
-            Fg(col) => fg = Some(col),
-            Khz(k) => khz = Some(k),
-            _ => (),
+        if let Meta(ref k, ref v) = *cmd {
+            meta.entry(k.clone())
+                .or_insert_with(Vec::default)
+                .push(v.clone());
         }
     }
     // Validate the bytebeat by checking that the stack does not get popped when empty
@@ -97,7 +72,7 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, CompileError> {
     for (index, cmd) in cmds.iter().enumerate() {
         let change = match *cmd {
             Var | NumF(_) | NumI(_) | Hex(_) => 1,
-            Fg(_) | Bg(_) | Khz(_) | Comment(_) => continue,
+            Meta(_, _) | Comment(_) => continue,
             // These all pop 1 value off the stack and push 1
             // value back on, so the net effect is no stack change
             Sin | Cos | Tan => 0,
@@ -127,7 +102,7 @@ pub fn compile(cmds: Vec<Cmd>) -> Result<Program, CompileError> {
     }
 
     match error_kind {
-        None => Ok(Program { cmds, bg, fg, khz }),
+        None => Ok(Program { cmds, meta }),
         Some(error_kind) => Err(CompileError { cmds, error_kind }),
     }
 }
@@ -176,15 +151,11 @@ impl<'a> std::fmt::Display for CompileError {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         use ErrorKind::*;
         match self.error_kind {
-            UnderflowedStack { index, stack_size } => {
-                write!(
-                    fmt,
-                    "Attempt to pop beyond stack size. instruction: {} index: {}, size of stack {}",
-                    self.cmds[index],
-                    index,
-                    stack_size
-                )
-            }
+            UnderflowedStack { index, stack_size } => write!(
+                fmt,
+                "Attempt to pop beyond stack size. instruction: {} index: {}, size of stack {}",
+                self.cmds[index], index, stack_size
+            ),
             EmptyProgram => write!(fmt, "Program is empty: {:?}", self.cmds),
         }
     }
@@ -198,7 +169,11 @@ pub enum Val {
 
 impl From<bool> for Val {
     fn from(b: bool) -> Val {
-        if b { Val::I(1) } else { Val::I(0) }
+        if b {
+            Val::I(1)
+        } else {
+            Val::I(0)
+        }
     }
 }
 
@@ -311,26 +286,20 @@ pub fn eval_beat<T: Into<Val>>(program: &Program, t: T) -> Val {
             Add => stack_op!(stack { a: i64, b: i64 } => a.wrapping_add(b)),
             Sub => stack_op!(stack { a: i64, b: i64 } => a.wrapping_sub(b)),
             Mul => stack_op!(stack { a: i64, b: i64 } => a.wrapping_mul(b)),
-            Div => {
-                stack_op!(stack { a: i64, b: i64 } => {
+            Div => stack_op!(stack { a: i64, b: i64 } => {
                     if b == 0 { 0 } else { a.wrapping_div(b) }
-                })
-            }
-            Mod => {
-                stack_op!(stack { a: i64, b: i64 } => {
+                }),
+            Mod => stack_op!(stack { a: i64, b: i64 } => {
                     if b == 0 { 0 } else { a.wrapping_rem(b) }
-                })
-            }
+                }),
             Shl => stack_op!(stack { a: i64, b: i64 } => a << (((b % 64) + 64) % 64)),
-            Shr => {
-                stack_op!(stack { a: i64, b: i64 } => {
+            Shr => stack_op!(stack { a: i64, b: i64 } => {
                     let mut b = b % 64;
                     if b < 0 {
                         b += 64;
                     }
                     a >> b
-                })
-            }
+                }),
             And => stack_op!(stack { a: i64, b: i64 } => a & b),
             Orr => stack_op!(stack { a: i64, b: i64 } => a | b),
             Xor => stack_op!(stack { a: i64, b: i64 } => a ^ b),
@@ -341,27 +310,21 @@ pub fn eval_beat<T: Into<Val>>(program: &Program, t: T) -> Val {
             AddF => stack_op!(stack { a: f64, b: f64 } => a + b),
             SubF => stack_op!(stack { a: f64, b: f64 } => a - b),
             MulF => stack_op!(stack { a: f64, b: f64 } => a * b),
-            DivF => {
-                stack_op!(stack { a: f64, b: f64 } => {
+            DivF => stack_op!(stack { a: f64, b: f64 } => {
                     if b == 0.0 { 0.0 } else { a / b }
-                })
-            }
-            ModF => {
-                stack_op!(stack { a: f64, b: f64 } => {
+                }),
+            ModF => stack_op!(stack { a: f64, b: f64 } => {
                     if b == 0.0 { 0.0 } else { a % b }
-                })
-            }
+                }),
             Lt => stack_op!(stack { a: Val, b: Val } => a < b),
             Gt => stack_op!(stack { a: Val, b: Val } => a > b),
             Leq => stack_op!(stack { a: Val, b: Val } => a <= b),
             Geq => stack_op!(stack { a: Val, b: Val } => a >= b),
             Eq => stack_op!(stack { a: Val, b: Val } => a == b),
             Neq => stack_op!(stack { a: Val, b: Val } => a != b),
-            Cond => {
-                stack_op!(stack { a: Val, b: Val, cond: bool } => {
+            Cond => stack_op!(stack { a: Val, b: Val, cond: bool } => {
                     if cond { a } else { b }
-                })
-            }
+                }),
             Arr(0) => stack.push(0.into()),
             Arr(size) => {
                 let index: i64 = stack.pop().unwrap().into();
@@ -375,7 +338,7 @@ pub fn eval_beat<T: Into<Val>>(program: &Program, t: T) -> Val {
                 stack.push(vec[index as usize]);
             }
             // These have no runtime effect
-            Fg(..) | Bg(..) | Khz(..) | Comment(..) => (),
+            Meta(..) | Comment(..) => (),
         }
     }
     stack.pop().unwrap()
@@ -415,27 +378,17 @@ pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, ParseError> {
             "!=" => Ok(Neq),
             "?" => Ok(Cond),
             x if x.starts_with('[') => x[1..].parse().map(Arr).map_err(|_| BadArr(x, i)),
-            x if x.starts_with("!fg:") => {
-                let raw = u16::from_str_radix(&x[4..], 16).map_err(|_| BadFG(x, i))?;
-                let r = (raw >> 8 & 0xF) as u8;
-                let g = (raw >> 4 & 0xF) as u8;
-                let b = (raw & 0xF) as u8;
-                Ok(Fg(Color([r << 4 | r, g << 4 | g, b << 4 | b])))
+            x if x.starts_with('!') && x.contains(':') => {
+                let mut parts = x[1..].split(':');
+                Ok(Meta(
+                    parts.next().unwrap().into(),
+                    parts.next().unwrap().into(),
+                ))
             }
-            x if x.starts_with("!bg:") => {
-                let raw = u16::from_str_radix(&x[4..], 16).map_err(|_| BadBG(x, i))?;
-                let r = (raw >> 8 & 0xF) as u8;
-                let g = (raw >> 4 & 0xF) as u8;
-                let b = (raw & 0xF) as u8;
-                Ok(Bg(Color([r << 4 | r, g << 4 | g, b << 4 | b])))
-            }
-            x if x.starts_with("!khz:") => x[5..].parse().map(Khz).map_err(|_| BadKhz(x, i)),
             x if x.starts_with('#') => Ok(Comment(x[1..].into())),
-            x if x.starts_with("0x") => {
-                i64::from_str_radix(&x[2..], 16).map(Hex).map_err(|_| {
-                    UnknownToken(x, i)
-                })
-            }
+            x if x.starts_with("0x") => i64::from_str_radix(&x[2..], 16)
+                .map(Hex)
+                .map_err(|_| UnknownToken(x, i)),
             x => {
                 if x.contains('.') {
                     x.parse().map(NumF).map_err(|_| UnknownToken(x, i))
@@ -450,9 +403,6 @@ pub fn parse_beat(text: &str) -> Result<Vec<Cmd>, ParseError> {
 #[derive(Debug, PartialEq)]
 pub enum ParseError<'a> {
     BadArr(&'a str, usize),
-    BadFG(&'a str, usize),
-    BadBG(&'a str, usize),
-    BadKhz(&'a str, usize),
     UnknownToken(&'a str, usize),
 }
 
@@ -461,9 +411,6 @@ impl<'a> std::fmt::Display for ParseError<'a> {
         use ParseError::*;
         match *self {
             BadArr(token, index) => write!(fmt, "Bad Array op: {}, index: {}", token, index),
-            BadFG(token, index) => write!(fmt, "Bad Foreground Color: {}, index: {}", token, index),
-            BadBG(token, index) => write!(fmt, "Bad Background Color: {}, index: {}", token, index),
-            BadKhz(token, index) => write!(fmt, "Bad Sample Rate: {}, index: {}", token, index),
             UnknownToken(token, index) => write!(fmt, "Unknown Token: {}, index: {}", token, index),
         }
     }
@@ -511,25 +458,7 @@ impl std::fmt::Display for Cmd {
             Neq => write!(fmt, "!="),
             Cond => write!(fmt, "?"),
             Arr(size) => write!(fmt, "[{}", size),
-            Fg(col) => {
-                write!(
-                    fmt,
-                    "!fg:{:X}{:X}{:X}",
-                    col.0[0] & 0xF,
-                    col.0[1] & 0xF,
-                    col.0[2] & 0xF
-                )
-            }
-            Bg(col) => {
-                write!(
-                    fmt,
-                    "!bg:{:X}{:X}{:X}",
-                    col.0[0] & 0xF,
-                    col.0[1] & 0xF,
-                    col.0[2] & 0xF
-                )
-            }
-            Khz(khz) => write!(fmt, "!khz:{}", khz),
+            Meta(ref k, ref v) => write!(fmt, "!{}:{}", k, v),
             Comment(ref text) => write!(fmt, "#{}", text),
         }
     }
